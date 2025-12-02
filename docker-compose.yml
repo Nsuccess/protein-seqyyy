@@ -1,44 +1,60 @@
-# docker-compose.yml
-
 version: '3.8'
 
 services:
-  # The PostgreSQL Database Service
-  db:
-    image: postgres:15-alpine  # Use a lightweight postgres image
-    container_name: local-postgres-db
-    environment:
-      POSTGRES_DB: knowledge_base
-      POSTGRES_USER: api_user
-      POSTGRES_PASSWORD: your_local_dev_password # This is for local dev only!
-    ports:
-      - "5432:5432"  # Map local port 5432 to the container's port 5432
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U api_user -d knowledge_base"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # The FastAPI Backend Service
   backend:
     build:
-      context: ./backend  # Tells Docker to look for the Dockerfile in the ./backend directory
-    container_name: backend-api-service
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: aging-proteins-backend
     ports:
-      - "8000:8080"  # Map local port 8000 to the container's port 8080
-    volumes:
-      - ./backend:/app  # Mounts your local code into the container for hot-reloading
+      - "8000:8000"
     environment:
-      - DB_HOST=db  # The hostname 'db' resolves to the postgres container
-      - DB_NAME=knowledge_base
-      - DB_USER=api_user
-      - DB_PASS=your_local_dev_password
-    depends_on:
-      db:
-        condition: service_healthy # Ensures the backend only starts after the DB is ready
+      - NEBIUS_API_KEY=${NEBIUS_API_KEY}
+      - NEBIUS_MODEL=${NEBIUS_MODEL:-meta-llama/Meta-Llama-3.1-70B-Instruct}
+      - FAISS_INDEX_PATH=/app/faiss_store
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./backend/faiss_store:/app/faiss_store
+      - ./data:/app/data:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - aging-proteins-network
 
-# Defines a named volume to persist database data across container restarts
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://backend:8000
+    container_name: aging-proteins-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NODE_ENV=production
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - aging-proteins-network
+
+networks:
+  aging-proteins-network:
+    driver: bridge
+
 volumes:
   postgres_data:
+  redis_data:
