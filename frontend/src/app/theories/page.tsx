@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Navigation from '@/components/Navigation';
+import Link from 'next/link';
+import { apiEndpoint } from '@/lib/api';
 
 interface Theory {
   theory_id: string;
@@ -37,7 +38,7 @@ export default function TheoriesPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('http://localhost:8000/theories/stats');
+      const response = await fetch(apiEndpoint('/theories/stats'));
       const data = await response.json();
       setStats(data);
     } catch (error) {
@@ -48,11 +49,11 @@ export default function TheoriesPage() {
   const fetchTheories = async (query = '', confidence = '') => {
     setLoading(true);
     try {
-      let url = 'http://localhost:8000/theories?limit=50';
+      let url = apiEndpoint('/theories?limit=50');
       if (query) {
-        url = `http://localhost:8000/theories/search?q=${encodeURIComponent(query)}&limit=50`;
+        url = apiEndpoint(`/theories/search?q=${encodeURIComponent(query)}&limit=50`);
       } else if (confidence) {
-        url = `http://localhost:8000/theories?confidence=${confidence}&limit=50`;
+        url = apiEndpoint(`/theories?confidence=${confidence}&limit=50`);
       }
       
       const response = await fetch(url);
@@ -90,43 +91,63 @@ export default function TheoriesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <Navigation />
-      <div className="max-w-7xl mx-auto px-8 pb-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Aging Theory Database
-          </h1>
-          <p className="text-lg text-gray-600">
+    <div className="min-h-screen bg-[#0a0f1a] text-white">
+      {/* Navigation */}
+      <nav className="border-b border-white/5">
+        <div className="mx-auto max-w-7xl px-6 py-4">
+          <div className="flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                <span className="text-xl">🧬</span>
+              </div>
+              <span className="text-lg font-semibold">AgingProteins.ai</span>
+            </Link>
+            <div className="flex items-center gap-6">
+              <Link href="/proteins" className="text-sm text-slate-400 hover:text-white transition-colors">Proteins</Link>
+              <Link href="/query" className="text-sm text-slate-400 hover:text-white transition-colors">Search</Link>
+              <Link href="/" className="text-sm text-slate-400 hover:text-white transition-colors">Home</Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Header */}
+      <header className="border-b border-white/5 bg-[#0d1525]">
+        <div className="mx-auto max-w-7xl px-6 py-10">
+          <p className="text-xs font-medium uppercase tracking-widest text-purple-400 mb-2">Research Database</p>
+          <h1 className="text-3xl font-bold">Aging Theory Database</h1>
+          <p className="mt-2 text-slate-400">
             Explore {stats?.unique_theory_names || 823} unique aging theories extracted from {stats?.total_papers || 6153} research papers
           </p>
         </div>
+      </header>
 
+
+      <main className="mx-auto max-w-7xl px-6 py-8">
         {/* Statistics Cards */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
-              <div className="text-3xl font-bold text-blue-600">{stats.total_theories.toLocaleString()}</div>
-              <div className="text-sm text-gray-600 mt-1">Total Theory Instances</div>
+          <section className="grid gap-4 sm:grid-cols-4 mb-8">
+            <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-6">
+              <p className="text-sm text-slate-500">Total Instances</p>
+              <p className="mt-2 text-3xl font-bold text-blue-400">{stats.total_theories.toLocaleString()}</p>
             </div>
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
-              <div className="text-3xl font-bold text-purple-600">{stats.unique_theory_names}</div>
-              <div className="text-sm text-gray-600 mt-1">Unique Theories</div>
+            <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-6">
+              <p className="text-sm text-slate-500">Unique Theories</p>
+              <p className="mt-2 text-3xl font-bold text-purple-400">{stats.unique_theory_names}</p>
             </div>
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
-              <div className="text-3xl font-bold text-green-600">{stats.total_papers.toLocaleString()}</div>
-              <div className="text-sm text-gray-600 mt-1">Research Papers</div>
+            <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-6">
+              <p className="text-sm text-slate-500">Research Papers</p>
+              <p className="mt-2 text-3xl font-bold text-green-400">{stats.total_papers.toLocaleString()}</p>
             </div>
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500">
-              <div className="text-3xl font-bold text-orange-600">{stats.confidence_distribution.high || 0}</div>
-              <div className="text-sm text-gray-600 mt-1">High Confidence</div>
+            <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-6">
+              <p className="text-sm text-slate-500">High Confidence</p>
+              <p className="mt-2 text-3xl font-bold text-orange-400">{stats.confidence_distribution.high || 0}</p>
             </div>
-          </div>
+          </section>
         )}
 
         {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <section className="rounded-2xl border border-white/10 bg-[#0d1525] p-6 mb-6">
           <form onSubmit={handleSearch} className="mb-4">
             <div className="flex gap-4">
               <input
@@ -134,11 +155,11 @@ export default function TheoriesPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search theories by name or concept..."
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
               />
               <button
                 type="submit"
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-medium"
               >
                 Search
               </button>
@@ -146,7 +167,7 @@ export default function TheoriesPage() {
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  className="px-6 py-3 bg-white/10 text-slate-300 rounded-xl hover:bg-white/20 transition-colors"
                 >
                   Clear
                 </button>
@@ -154,76 +175,78 @@ export default function TheoriesPage() {
             </div>
           </form>
 
-          <div className="flex gap-2">
-            <span className="text-sm text-gray-600 py-2">Filter by confidence:</span>
+          <div className="flex gap-2 items-center">
+            <span className="text-sm text-slate-500">Filter by confidence:</span>
             <button
               onClick={() => handleConfidenceFilter('high')}
-              className={`px-4 py-1 rounded-full text-sm transition-colors ${
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                 confidenceFilter === 'high'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+                  ? 'bg-green-500 text-white'
+                  : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
               }`}
             >
               High
             </button>
             <button
               onClick={() => handleConfidenceFilter('medium')}
-              className={`px-4 py-1 rounded-full text-sm transition-colors ${
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                 confidenceFilter === 'medium'
-                  ? 'bg-yellow-600 text-white'
-                  : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
               }`}
             >
               Medium
             </button>
           </div>
-        </div>
+        </section>
 
         {/* Top Theories */}
         {stats && !searchQuery && !confidenceFilter && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">🔥 Top Aging Theories</h2>
+          <section className="rounded-2xl border border-white/10 bg-[#0d1525] p-6 mb-6">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <span>🔥</span> Top Aging Theories
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {stats.top_theories.slice(0, 10).map((theory, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                  className="flex items-center justify-between p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer border border-white/5"
                   onClick={() => {
                     setSearchQuery(theory.name);
                     fetchTheories(theory.name, '');
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="text-2xl font-bold text-gray-400">#{index + 1}</div>
-                    <div className="font-medium text-gray-900">{theory.name}</div>
+                    <div className="text-xl font-bold text-slate-600">#{index + 1}</div>
+                    <div className="font-medium text-white">{theory.name}</div>
                   </div>
-                  <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+                  <div className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm font-semibold">
                     {theory.count} papers
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
         {/* Results */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-900">
+        <section className="rounded-2xl border border-white/10 bg-[#0d1525] p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold">
               {searchQuery ? `Search Results for "${searchQuery}"` : confidenceFilter ? `${confidenceFilter.charAt(0).toUpperCase() + confidenceFilter.slice(1)} Confidence Theories` : 'All Theories'}
             </h2>
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-slate-500">
               Showing {theories.length} of {total.toLocaleString()} results
             </div>
           </div>
 
           {loading ? (
             <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-600">Loading theories...</p>
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-purple-500 border-t-transparent mx-auto"></div>
+              <p className="mt-4 text-slate-400">Loading theories...</p>
             </div>
           ) : theories.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-slate-500">
               No theories found. Try a different search term.
             </div>
           ) : (
@@ -231,31 +254,31 @@ export default function TheoriesPage() {
               {theories.map((theory) => (
                 <div
                   key={theory.theory_id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+                  className="rounded-xl border border-white/10 bg-white/5 p-5 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all"
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-xl font-semibold text-gray-900">{theory.name}</h3>
+                  <div className="flex justify-between items-start mb-3">
+                    <h3 className="text-lg font-semibold text-white">{theory.name}</h3>
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-semibold ${
                         theory.confidence === 'high'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-yellow-100 text-yellow-700'
+                          ? 'bg-green-500/20 text-green-400'
+                          : 'bg-yellow-500/20 text-yellow-400'
                       }`}
                     >
                       {theory.confidence}
                     </span>
                   </div>
                   
-                  <p className="text-gray-700 mb-3 line-clamp-2">{theory.paper_title}</p>
+                  <p className="text-slate-400 mb-3 line-clamp-2">{theory.paper_title}</p>
                   
                   {theory.concept_summary && (
-                    <div className="mb-3 p-3 bg-blue-50 rounded-lg">
-                      <div className="text-sm font-medium text-blue-900 mb-1">Key Concepts:</div>
-                      <div className="text-sm text-blue-800">{theory.concept_summary}</div>
+                    <div className="mb-3 p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                      <div className="text-sm font-medium text-purple-300 mb-1">Key Concepts:</div>
+                      <div className="text-sm text-purple-200">{theory.concept_summary}</div>
                     </div>
                   )}
                   
-                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-4 text-sm text-slate-500">
                     <span className="flex items-center gap-1">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -273,7 +296,7 @@ export default function TheoriesPage() {
                         href={`https://doi.org/${theory.doi}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                        className="text-purple-400 hover:text-purple-300 hover:underline"
                       >
                         View Paper →
                       </a>
@@ -283,8 +306,8 @@ export default function TheoriesPage() {
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }

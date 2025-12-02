@@ -18,7 +18,7 @@ type ProteinCardProps = {
 export default function ProteinCard({ protein }: ProteinCardProps) {
   return (
     <Link
-      href={`/protein/${protein.symbol.toLowerCase()}`}
+      href={`/protein-detail/${protein.symbol}`}
       className="group block rounded-2xl border border-[var(--border-color)] bg-[var(--background-elevated)] p-6 shadow-[var(--shadow-soft)] transition-all hover:-translate-y-1 hover:shadow-lg"
     >
       {/* Header */}

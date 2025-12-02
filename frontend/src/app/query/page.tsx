@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import QueryInterface, { QueryParams } from '@/components/QueryInterface';
 import QueryResults from '@/components/QueryResults';
 import ExampleQueries from '@/components/ExampleQueries';
 import Link from 'next/link';
+import { apiEndpoint } from '@/lib/api';
 
 interface QueryResponse {
   status: string;
@@ -42,13 +44,24 @@ interface QueryResponse {
   is_general_query?: boolean;
 }
 
-export default function QueryPage() {
+function QueryPageContent() {
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<QueryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentQuery, setCurrentQuery] = useState('');
+  const [initialQueryExecuted, setInitialQueryExecuted] = useState(false);
 
-  const handleQuery = async (params: QueryParams) => {
+  useEffect(() => {
+    const queryFromUrl = searchParams.get('q');
+    if (queryFromUrl && !initialQueryExecuted) {
+      setCurrentQuery(queryFromUrl);
+      setInitialQueryExecuted(true);
+      handleQueryInternal({ query: queryFromUrl, topK: 10 });
+    }
+  }, [searchParams, initialQueryExecuted]);
+
+  const handleQueryInternal = async (params: QueryParams) => {
     setCurrentQuery(params.query);
     setIsLoading(true);
     setError(null);
@@ -71,18 +84,15 @@ export default function QueryPage() {
         });
       }
 
-      // Use general RAG endpoint if no filters, otherwise use filtered endpoint
       const endpoint = (params.proteinFilter || (params.theoryFilters && params.theoryFilters.length > 0))
         ? 'rag'
         : 'rag-general';
       
       const response = await fetch(
-        `http://localhost:8000/query/${endpoint}?${queryParams.toString()}`,
+        apiEndpoint(`/query/${endpoint}?${queryParams.toString()}`),
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
         }
       );
 
@@ -91,72 +101,69 @@ export default function QueryPage() {
       }
 
       const data = await response.json();
-      console.log('Query response:', data); // Debug log
       setResults(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Query error:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleQuery = (params: QueryParams) => {
+    handleQueryInternal(params);
+  };
+
   return (
-    <div className="min-h-screen bg-[var(--background)]">
-      {/* Header */}
-      <header className="border-b border-[var(--border-color)] bg-white/70 backdrop-blur">
-        <div className="mx-auto max-w-6xl px-6 py-8">
+    <div className="min-h-screen bg-[#0a0f1a]">
+      {/* Navigation */}
+      <nav className="border-b border-white/5">
+        <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-[0.45em] text-[var(--accent-primary)]">
-                RAG Query
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-                Ask ANY question about proteins
-              </h1>
-              <p className="mt-2 text-sm text-[var(--foreground-muted)]">
-                Search across 308 proteins and 7,018 papers - we'll find aging connections automatically
-              </p>
-            </div>
-            <Link
-              href="/"
-              className="rounded-xl border border-[var(--border-color)] bg-white px-4 py-2 text-sm font-medium text-[var(--foreground-muted)] transition-colors hover:bg-[var(--background)]"
-            >
-              ← Back to Home
+            <Link href="/" className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                <span className="text-xl">🧬</span>
+              </div>
+              <span className="text-lg font-semibold text-white">AgingProteins.ai</span>
             </Link>
+            <div className="flex items-center gap-6">
+              <Link href="/proteins" className="text-sm text-slate-400 hover:text-white transition-colors">Proteins</Link>
+              <Link href="/theories" className="text-sm text-slate-400 hover:text-white transition-colors">Theories</Link>
+              <Link href="/" className="text-sm text-slate-400 hover:text-white transition-colors">Home</Link>
+            </div>
           </div>
+        </div>
+      </nav>
+
+      {/* Header */}
+      <header className="border-b border-white/5 bg-[#0d1525]">
+        <div className="mx-auto max-w-6xl px-6 py-10">
+          <p className="text-xs font-medium uppercase tracking-widest text-blue-400 mb-2">
+            AI-Powered Search
+          </p>
+          <h1 className="text-3xl font-bold text-white mb-2">
+            Ask any question about aging proteins
+          </h1>
+          <p className="text-slate-400">
+            Search across 308 proteins and 7,018 papers — we will find aging connections automatically
+          </p>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="mx-auto max-w-6xl px-6 py-8">
         <div className="space-y-8">
-          {/* Query Interface */}
           <QueryInterface onQuery={handleQuery} isLoading={isLoading} />
 
-          {/* Error Message */}
           {error && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-6">
               <div className="flex items-start gap-3">
-                <svg
-                  className="h-5 w-5 text-red-600 mt-0.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
+                <span className="text-red-400">⚠️</span>
                 <div>
-                  <h3 className="font-semibold text-red-900">Query Error</h3>
-                  <p className="mt-1 text-sm text-red-700">{error}</p>
+                  <h3 className="font-semibold text-red-300">Query Error</h3>
+                  <p className="mt-1 text-sm text-red-400">{error}</p>
                   <button
                     onClick={() => setError(null)}
-                    className="mt-3 text-sm font-medium text-red-600 hover:text-red-800"
+                    className="mt-3 text-sm font-medium text-red-400 hover:text-red-300"
                   >
                     Dismiss
                   </button>
@@ -165,19 +172,17 @@ export default function QueryPage() {
             </div>
           )}
 
-          {/* Loading State */}
           {isLoading && (
-            <div className="rounded-3xl border border-[var(--border-color)] bg-white p-12 text-center shadow-[var(--shadow-soft)]">
+            <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-12 text-center">
               <div className="inline-flex items-center gap-3">
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--accent-primary)] border-t-transparent" />
-                <span className="text-sm font-medium text-[var(--foreground-muted)]">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                <span className="text-sm font-medium text-slate-400">
                   Searching and synthesizing answer...
                 </span>
               </div>
             </div>
           )}
 
-          {/* Query Results */}
           {results && !isLoading && (
             <QueryResults
               answer={results.answer || ''}
@@ -196,7 +201,6 @@ export default function QueryPage() {
             />
           )}
 
-          {/* Empty State with Example Queries */}
           {!results && !isLoading && !error && (
             <ExampleQueries onQuerySelect={(query) => {
               setCurrentQuery(query);
@@ -206,5 +210,20 @@ export default function QueryPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function QueryPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0a0f1a] flex items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent mx-auto mb-4" />
+          <p className="text-slate-400">Loading...</p>
+        </div>
+      </div>
+    }>
+      <QueryPageContent />
+    </Suspense>
   );
 }

@@ -36,7 +36,7 @@ export default function DashboardPage() {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveSection(tab.id as any)}
+                onClick={() => setActiveSection(tab.id as 'home' | 'query' | 'stats' | 'compare' | 'demo')}
                 className={`px-6 py-3 font-medium text-sm whitespace-nowrap transition-all ${
                   activeSection === tab.id
                     ? `border-b-2 border-${tab.color}-600 text-${tab.color}-600`

@@ -400,8 +400,8 @@ Focus on aging-related mechanisms and proteins when relevant."""
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                max_tokens=500,
-                temperature=0.3
+                max_tokens=400,  # Reduced for faster responses
+                temperature=0.2  # Lower temp = faster, more deterministic
             )
             
             answer = response.choices[0].message.content

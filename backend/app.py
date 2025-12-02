@@ -60,7 +60,7 @@ FAISS_DIR = "./faiss_store"
 # We keep this constant in code (not secret).
 NEBIUS_BASE_URL = "https://api.studio.nebius.com/v1/"  # docs: /v1/chat/completions
 #NEBIUS_MODEL = "openai/gpt-oss-120b"  # inexpensive, open-source model suitable for tests
-NEBIUS_MODEL = "Qwen/Qwen3-30B-A3B-Instruct-2507"
+NEBIUS_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-fast"  # 155 tok/s - fastest option!
 NEBIUS_EMBED_MODEL = "Qwen/Qwen3-Embedding-8B"
 #NEBIUS_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-fast"
 
@@ -708,7 +708,7 @@ def predict_protein_function_enhanced(
 @app.post("/query/rag")
 def rag_query(
     query: str,
-    top_k: int = 10,
+    top_k: int = 5,  # Reduced from 10 for faster responses
     protein: Optional[str] = None,
     theories: Optional[List[str]] = None,
     synthesize: bool = True
@@ -757,6 +757,13 @@ def rag_query(
             synthesize=synthesize
         )
         
+        # Extract proteins from the LLM answer text (in addition to chunk proteins)
+        answer_proteins = list(protein_recognizer.extract_unique_proteins(result.answer))
+        
+        # Combine proteins from chunks and answer, removing duplicates
+        all_proteins = list(set(result.proteins_mentioned + answer_proteins))
+        all_proteins.sort()  # Sort for consistent ordering
+        
         # Format response
         return {
             "status": "success",
@@ -779,7 +786,7 @@ def rag_query(
             "citations": result.citations,
             "metadata": {
                 "confidence": result.confidence,
-                "proteins_mentioned": result.proteins_mentioned,
+                "proteins_mentioned": all_proteins,  # Now includes proteins from answer
                 "theories_identified": result.theories_identified,
                 "query_time_ms": result.query_time_ms,
                 "filters_applied": result.filters_applied,
@@ -803,7 +810,7 @@ def rag_query(
 @app.post("/query/rag-general")
 def rag_query_general(
     query: str,
-    top_k: int = 10,
+    top_k: int = 5,  # Reduced from 10 for faster responses
     synthesize: bool = True
 ):
     """
@@ -851,11 +858,18 @@ def rag_query_general(
             synthesize=synthesize
         )
         
+        # Extract proteins from the LLM answer text (in addition to chunk proteins)
+        answer_proteins = list(protein_recognizer.extract_unique_proteins(result.answer))
+        
+        # Combine proteins from chunks and answer, removing duplicates
+        all_proteins = list(set(result.proteins_mentioned + answer_proteins))
+        all_proteins.sort()  # Sort for consistent ordering
+        
         # Analyze response for aging connections
         full_text = result.answer + " " + " ".join(chunk.text for chunk in result.chunks[:3])
         aging_connections = analyzer.find_aging_connections(
             text=full_text,
-            proteins=result.proteins_mentioned
+            proteins=all_proteins
         )
         
         # Format response
@@ -880,7 +894,7 @@ def rag_query_general(
             "citations": result.citations,
             "metadata": {
                 "confidence": result.confidence,
-                "proteins_mentioned": result.proteins_mentioned,
+                "proteins_mentioned": all_proteins,  # Now includes proteins from answer
                 "theories_identified": result.theories_identified,
                 "query_time_ms": result.query_time_ms,
                 "filters_applied": result.filters_applied,

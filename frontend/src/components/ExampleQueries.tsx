@@ -47,11 +47,11 @@ export default function ExampleQueries({ onQuerySelect }: ExampleQueriesProps) {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h3 className="text-lg font-semibold text-[var(--foreground)] mb-2">
+        <h3 className="text-lg font-semibold text-white mb-2">
           Try asking about...
         </h3>
-        <p className="text-sm text-[var(--foreground-subtle)]">
-          Ask any question about proteins - we'll find aging connections automatically
+        <p className="text-sm text-slate-400">
+          Ask any question about proteins — we will find aging connections automatically
         </p>
       </div>
 
@@ -59,11 +59,11 @@ export default function ExampleQueries({ onQuerySelect }: ExampleQueriesProps) {
         {examples.map(category => (
           <div
             key={category.category}
-            className="rounded-2xl border border-[var(--border-color)] bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
+            className="rounded-2xl border border-white/10 bg-[#0d1525] p-5"
           >
             <div className="flex items-center gap-2 mb-3">
               <span className="text-2xl">{category.icon}</span>
-              <h4 className="font-semibold text-[var(--foreground)]">
+              <h4 className="font-semibold text-white">
                 {category.category}
               </h4>
             </div>
@@ -72,9 +72,9 @@ export default function ExampleQueries({ onQuerySelect }: ExampleQueriesProps) {
                 <button
                   key={query}
                   onClick={() => onQuerySelect(query)}
-                  className="w-full text-left rounded-lg border border-[var(--border-color)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground-muted)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-primary)] transition-all"
+                  className="w-full text-left rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-400 hover:border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-300 transition-all"
                 >
-                  "{query}"
+                  &quot;{query}&quot;
                 </button>
               ))}
             </div>

@@ -116,12 +116,12 @@ class UniProtClient:
         # Enforce rate limiting
         self._enforce_rate_limit()
         
-        # Search for protein by gene name
+        # Search for protein by gene name - prefer reviewed (Swiss-Prot) canonical entries
         search_url = f"{self.BASE_URL}/search"
         params = {
-            "query": f"(gene:{gene_symbol}) AND (organism_id:9606)",  # Human proteins only
+            "query": f"(gene:{gene_symbol}) AND (organism_id:9606) AND (reviewed:true)",  # Human proteins, reviewed only
             "format": "json",
-            "size": 1
+            "size": 5  # Get multiple results to find canonical entry
         }
         
         try:
@@ -137,9 +137,33 @@ class UniProtClient:
                 print(f"[UniProtClient] No results found for {gene_symbol}")
                 return None
             
-            # Parse the first result
-            entry = results[0]
-            protein_data = self._parse_uniprot_entry(entry, gene_symbol)
+            # Find the best entry - prefer canonical entries with PDB structures
+            best_entry = results[0]
+            best_score = 0
+            
+            for entry in results:
+                score = 0
+                # Prefer entries with PDB structures
+                db_refs = entry.get("uniProtKBCrossReferences", [])
+                pdb_count = sum(1 for ref in db_refs if ref.get("database") == "PDB")
+                score += pdb_count * 10
+                
+                # Prefer longer sequences (canonical vs fragments)
+                seq_length = entry.get("sequence", {}).get("length", 0)
+                score += seq_length // 100
+                
+                # Prefer entries with function annotation
+                comments = entry.get("comments", [])
+                has_function = any(c.get("commentType") == "FUNCTION" for c in comments)
+                if has_function:
+                    score += 5
+                
+                if score > best_score:
+                    best_score = score
+                    best_entry = entry
+            
+            print(f"[UniProtClient] Selected entry with score {best_score} (PDB structures available: {best_score >= 10})")
+            protein_data = self._parse_uniprot_entry(best_entry, gene_symbol)
             
             # Cache the result
             self._add_to_cache(gene_symbol, protein_data)

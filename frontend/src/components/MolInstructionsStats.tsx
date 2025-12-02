@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { apiEndpoint } from '@/lib/api';
 
 interface MolStats {
   total_instructions: number;
@@ -17,7 +18,7 @@ export default function MolInstructionsStats() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch('http://localhost:8000/mol-instructions/stats');
+        const response = await fetch(apiEndpoint('/mol-instructions/stats'));
         if (!response.ok) throw new Error('Failed to fetch Mol-Instructions stats');
         const data = await response.json();
         setStats(data);
@@ -37,17 +38,17 @@ export default function MolInstructionsStats() {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-[var(--border-color)] bg-white p-6 shadow-[var(--shadow-soft)]">
-        <p className="text-sm text-[var(--foreground-muted)]">Loading Mol-Instructions stats...</p>
+      <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-6">
+        <p className="text-sm text-slate-400">Loading Mol-Instructions stats...</p>
       </div>
     );
   }
 
   if (error || !stats) {
     return (
-      <div className="rounded-2xl border border-orange-200 bg-orange-50 p-6">
-        <p className="text-sm font-semibold text-orange-900 mb-2">Mol-Instructions Not Available</p>
-        <p className="text-xs text-orange-700">
+      <div className="rounded-2xl border border-orange-500/30 bg-orange-500/10 p-6">
+        <p className="text-sm font-semibold text-orange-300 mb-2">Mol-Instructions Not Available</p>
+        <p className="text-xs text-orange-400">
           {error || 'Dataset not loaded. Few-shot learning features are unavailable.'}
         </p>
       </div>
@@ -56,9 +57,9 @@ export default function MolInstructionsStats() {
 
   if (!stats.loaded || stats.total_instructions === 0) {
     return (
-      <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-6">
-        <p className="text-sm font-semibold text-yellow-900 mb-2">Mol-Instructions Dataset</p>
-        <p className="text-xs text-yellow-700">
+      <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-6">
+        <p className="text-sm font-semibold text-yellow-300 mb-2">Mol-Instructions Dataset</p>
+        <p className="text-xs text-yellow-400">
           Dataset not loaded. Download to enable few-shot protein function prediction.
         </p>
       </div>
@@ -68,7 +69,7 @@ export default function MolInstructionsStats() {
   const maxCount = Math.max(...Object.values(stats.by_task));
 
   return (
-    <div className="rounded-3xl border border-[var(--border-color)] bg-white p-6 shadow-[var(--shadow-soft)]">
+    <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-6">
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
           <div className="rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 p-2">
@@ -77,32 +78,24 @@ export default function MolInstructionsStats() {
             </svg>
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-[var(--foreground)]">
-              Mol-Instructions Dataset
-            </h3>
-            <p className="text-xs text-[var(--foreground-subtle)]">
-              Few-shot learning for protein function prediction
-            </p>
+            <h3 className="text-lg font-semibold text-white">Mol-Instructions Dataset</h3>
+            <p className="text-xs text-slate-500">Few-shot learning for protein function prediction</p>
           </div>
         </div>
       </div>
 
       {/* Total Count Card */}
-      <div className="mb-6 rounded-xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-purple-50 p-6 text-center">
-        <p className="text-sm font-semibold text-indigo-700 mb-2">Total Instructions Loaded</p>
-        <p className="text-4xl font-bold text-indigo-900">
+      <div className="mb-6 rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 p-6 text-center">
+        <p className="text-sm font-semibold text-indigo-300 mb-2">Total Instructions Loaded</p>
+        <p className="text-4xl font-bold text-white">
           {stats.total_instructions.toLocaleString()}
         </p>
-        <p className="text-xs text-indigo-600 mt-2">
-          Protein-oriented instruction examples
-        </p>
+        <p className="text-xs text-indigo-400 mt-2">Protein-oriented instruction examples</p>
       </div>
 
       {/* Task Distribution */}
       <div className="space-y-3">
-        <p className="text-sm font-semibold text-[var(--foreground)] mb-3">
-          Distribution by Task Type
-        </p>
+        <p className="text-sm font-semibold text-white mb-3">Distribution by Task Type</p>
         {Object.entries(stats.by_task).map(([task, count]) => {
           const percentage = (count / stats.total_instructions) * 100;
           const widthPercentage = (count / maxCount) * 100;
@@ -110,16 +103,14 @@ export default function MolInstructionsStats() {
           return (
             <div key={task} className="group">
               <div className="mb-1 flex items-center justify-between text-sm">
-                <span className="font-medium text-[var(--foreground)]">
-                  {formatTaskName(task)}
-                </span>
-                <span className="text-[var(--foreground-subtle)] text-xs">
+                <span className="font-medium text-white">{formatTaskName(task)}</span>
+                <span className="text-slate-500 text-xs">
                   {count.toLocaleString()} ({percentage.toFixed(1)}%)
                 </span>
               </div>
-              <div className="h-6 w-full overflow-hidden rounded-lg bg-gray-100">
+              <div className="h-6 w-full overflow-hidden rounded-lg bg-white/5">
                 <div
-                  className="h-full rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-500 group-hover:from-indigo-600 group-hover:to-purple-700"
+                  className="h-full rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-500 group-hover:from-indigo-400 group-hover:to-purple-500"
                   style={{ width: `${widthPercentage}%` }}
                 />
               </div>
@@ -129,11 +120,9 @@ export default function MolInstructionsStats() {
       </div>
 
       {/* Info Footer */}
-      <div className="mt-6 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
-        <p className="text-xs font-semibold text-indigo-900 mb-1">
-          ✨ Few-Shot Learning Enabled
-        </p>
-        <p className="text-xs text-indigo-700">
+      <div className="mt-6 rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-4">
+        <p className="text-xs font-semibold text-indigo-300 mb-1">✨ Few-Shot Learning Enabled</p>
+        <p className="text-xs text-indigo-400">
           Use these examples to enhance protein function predictions with contextual learning.
         </p>
       </div>

@@ -1,332 +1,549 @@
-# 🧬 Aging Protein RAG System
+# 🧬 AgingProteins.ai - Longevity Research Platform
 
-**Universal Protein Intelligence with Automatic Aging Relevance Detection**
-
-A powerful RAG (Retrieval-Augmented Generation) system that searches across **308 aging-related proteins** and **7,018 scientific papers** to answer ANY protein question while automatically identifying connections to aging and longevity.
+> **OpenLongevity AISOC Hackathon Submission**
+> 
+> A comprehensive AI-powered platform for exploring aging-related proteins, scientific literature, and longevity research using RAG (Retrieval-Augmented Generation) technology.
 
 ---
 
-## ✨ Key Features
+## 🎯 What We Built
 
-### 🤖 Universal Queries
-- **Ask ANY protein question** - not limited to aging topics
-- Automatic aging relevance detection
-- Smart analysis of 30+ aging keywords and 11 aging theories
-- Visual relevance badges with connections
+AgingProteins.ai is a **universal protein intelligence platform** that combines:
 
-### 🧬 3D Protein Visualization
-- Interactive Molstar 3D viewer
-- Inline and fullscreen viewing modes
-- Support for multiple PDB structures
-- Smooth animations and controls
+- **308 aging-related proteins** from the GenAge Human database
+- **7,018 scientific papers** from Europe PMC
+- **495,004 Mol-Instructions** for enhanced ML understanding
+- **11 aging theories** classification system
+- **3D protein structure visualization** via RCSB PDB
+- **AI-powered RAG search** with automatic aging relevance detection
 
-### 📚 Enhanced Citations
-- Bold, prominent source display
-- Large clickable buttons with hover effects
-- Direct links to Europe PMC papers
-- Impossible to miss!
+### The Problem We Solved
 
-### 🔍 Smart Search
-- Semantic search with FAISS vector database
-- LLM-powered answer synthesis
-- Collapsible source chunks
-- Recent paper highlighting (last 5 years)
+Traditional protein databases are:
+- ❌ Limited to specific query types
+- ❌ Hard to navigate for non-experts
+- ❌ Missing connections between proteins and aging
+- ❌ No visual exploration tools
 
-### 💡 Example Queries
-- 16 pre-loaded examples across 4 categories
-- Aging-Specific, General, Comparative, Mechanistic
-- One-click query execution
+### Our Solution
+
+- ✅ **Ask ANY question** - not limited to aging topics
+- ✅ **Automatic aging detection** - AI finds longevity connections
+- ✅ **3D visualization** - interactive protein structures
+- ✅ **Beautiful UX** - modern, accessible interface
+- ✅ **Comprehensive citations** - direct links to papers
+
+---
+
+## 🧬 The Science of Aging
+
+### What is Longevity Research?
+
+Longevity research studies the biological mechanisms of aging to extend healthy human lifespan. Our platform focuses on **proteins** - the molecular machines that control aging processes.
+
+### The 11 Hallmarks of Aging
+
+Our system classifies proteins by their connection to established aging theories:
+
+| Theory | Description | Example Proteins |
+|--------|-------------|------------------|
+| **Genomic Instability** | DNA damage accumulation | TP53, BRCA1, ATM |
+| **Telomere Attrition** | Chromosome end shortening | TERT, TERC, POT1 |
+| **Epigenetic Alterations** | Gene expression changes | SIRT1, SIRT6, HDAC |
+| **Loss of Proteostasis** | Protein quality decline | HSP70, HSP90, HSPA |
+| **Mitochondrial Dysfunction** | Energy production failure | POLG, TFAM, PGC1A |
+| **Cellular Senescence** | Cell division arrest | CDKN2A, RB1, CDKN1A |
+| **Stem Cell Exhaustion** | Regeneration decline | SOX2, NANOG, KLF4 |
+| **Altered Intercellular Communication** | Signaling disruption | IGF1, GH, FOXO3 |
+| **Disabled Macroautophagy** | Cellular cleanup failure | ATG5, BECN1, LC3 |
+| **Chronic Inflammation** | Persistent immune activation | IL6, TNF, NFKB |
+| **Dysbiosis** | Microbiome imbalance | TLR4, NOD2, MYD88 |
+
+### Key Longevity Proteins
+
+#### SIRT6 - The Longevity Sirtuin
+- **Function**: NAD+-dependent deacetylase
+- **Aging Role**: DNA repair, telomere maintenance, glucose metabolism
+- **Research**: Overexpression extends lifespan in mice by 15-20%
+
+#### FOXO3 - The Centenarian Gene
+- **Function**: Transcription factor
+- **Aging Role**: Stress resistance, autophagy, metabolism
+- **Research**: Variants associated with exceptional longevity in humans
+
+#### APOE - The Alzheimer's Connection
+- **Function**: Lipid transport protein
+- **Aging Role**: Cholesterol metabolism, neurodegeneration
+- **Research**: APOE4 variant increases Alzheimer's risk; APOE2 is protective
+
+#### TP53 - The Guardian of the Genome
+- **Function**: Tumor suppressor
+- **Aging Role**: DNA damage response, cell cycle control, apoptosis
+- **Research**: Balances cancer prevention with cellular senescence
+
+---
+
+## 🏗️ System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        FRONTEND (Next.js)                        │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐   │
+│  │  Home   │ │  Query  │ │Proteins │ │ Compare │ │  Stats  │   │
+│  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘   │
+│       │           │           │           │           │         │
+│  ┌────┴───────────┴───────────┴───────────┴───────────┴────┐   │
+│  │              React Components + Tailwind CSS             │   │
+│  │  • QueryInterface    • ProteinCard    • SequencePanel   │   │
+│  │  • QueryResults      • Navigation     • ProteinViewer   │   │
+│  │  • AgingRelevance    • StatsDashboard • DemoMode        │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                              │ HTTP/REST
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                        BACKEND (FastAPI)                         │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                    API Endpoints                         │   │
+│  │  POST /query/rag-general  - Universal protein queries   │   │
+│  │  POST /query/rag          - Filtered aging queries      │   │
+│  │  GET  /proteins           - List all proteins           │   │
+│  │  GET  /protein/{symbol}   - Protein details             │   │
+│  │  GET  /stats/*            - Dataset statistics          │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                              │                                   │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────────┐   │
+│  │ RAG Engine    │  │ Aging Analyzer│  │ UniProt Client    │   │
+│  │ (LlamaIndex)  │  │ (30+ keywords)│  │ (Sequence fetch)  │   │
+│  └───────┬───────┘  └───────────────┘  └───────────────────┘   │
+│          │                                                       │
+│  ┌───────┴───────┐  ┌───────────────┐  ┌───────────────────┐   │
+│  │ FAISS Vector  │  │ GenAge Loader │  │ Mol-Instructions  │   │
+│  │ Database      │  │ (308 proteins)│  │ (495K examples)   │   │
+│  └───────────────┘  └───────────────┘  └───────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      EXTERNAL SERVICES                           │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
+│  │ Nebius LLM  │  │ RCSB PDB    │  │ UniProt REST API        │ │
+│  │ (Synthesis) │  │ (3D Images) │  │ (Sequences)             │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- 16GB RAM (for FAISS index)
 
-### Backend Setup
+- **Python 3.11+**
+- **Node.js 18+**
+- **16GB RAM** (for FAISS vector index)
+- **Nebius API Key** (for LLM synthesis)
+
+### Option 1: Docker (Recommended)
 
 ```bash
+# Clone the repository
+git clone https://github.com/your-repo/aging-proteins.git
+cd aging-proteins
+
+# Create environment file
+cp .env.example .env
+# Edit .env and add your NEBIUS_API_KEY
+
+# Start all services
+docker-compose up -d
+
+# Access the application
+# Frontend: http://localhost:3000
+# Backend:  http://localhost:8000
+# API Docs: http://localhost:8000/docs
+```
+
+### Option 2: Manual Setup
+
+#### Backend Setup
+```bash
 cd backend
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
 
-# Set your API key
-echo "NEBIUS_API_KEY=your_key_here" > .env
+# Configure environment
+cp .env.example .env
+# Edit .env and add your NEBIUS_API_KEY
 
 # Start the server
 python app.py
+# Backend runs on http://localhost:8000
 ```
 
-Backend will run on `http://localhost:8000`
-
-### Frontend Setup
-
+#### Frontend Setup
 ```bash
 cd frontend
+
+# Install dependencies
 npm install
+
+# Configure environment
+cp .env.example .env.local
+# Edit .env.local if needed (defaults work for local dev)
+
+# Start development server
 npm run dev
-```
-
-Frontend will run on `http://localhost:3000`
-
----
-
-## 📊 Dataset
-
-- **308 proteins** from GenAge Human Ageing Genomic Resources
-- **7,018 scientific papers** from Europe PMC
-- **495,004 Mol-Instructions** for few-shot learning
-- **11 aging theories** classification
-
----
-
-## 🎯 Usage Examples
-
-### Example 1: General Query
-```
-Query: "What is the function of p53?"
-Result: Comprehensive answer + aging connections automatically identified
-```
-
-### Example 2: Aging-Specific Query
-```
-Query: "What is the role of SIRT6 in aging?"
-Result: Detailed aging analysis with high relevance score
-```
-
-### Example 3: Comparative Query
-```
-Query: "Compare FOXO3 and FOXO1 functions"
-Result: Side-by-side comparison with shared aging theories
-```
-
-### Example 4: 3D Visualization
-```
-1. Go to /proteins
-2. Click on any protein (e.g., APOE)
-3. See 3D structure at the top
-4. Click "View in Fullscreen" for detailed exploration
+# Frontend runs on http://localhost:3000
 ```
 
 ---
 
-## 🏗️ Architecture
+## 📱 Features Guide
 
-### Backend (FastAPI)
-- **FAISS** vector database for semantic search
-- **LlamaIndex** for RAG orchestration
-- **Nebius LLM** for answer synthesis
-- **AgingRelevanceAnalyzer** for automatic aging detection
+### 1. Universal RAG Query (`/query`)
 
-### Frontend (Next.js)
-- **React 18** with TypeScript
-- **Molstar** for 3D protein visualization
-- **Tailwind CSS** for styling
-- **Responsive design** for all devices
+Ask ANY protein question - the AI automatically detects aging connections.
+
+**Example Queries:**
+- "What is the function of p53?" → Gets answer + aging relevance
+- "How does SIRT6 affect longevity?" → Detailed aging analysis
+- "Compare FOXO3 and FOXO1" → Side-by-side comparison
+- "What proteins are involved in autophagy?" → Multi-protein results
+
+**Features:**
+- 🔍 Semantic search across 7,018 papers
+- 🤖 LLM-synthesized answers
+- 🏷️ Automatic aging relevance scoring
+- 📚 Clickable citations to source papers
+- 💡 16 example queries to get started
+
+### 2. Protein Browser (`/proteins`)
+
+Browse all 308 aging-related proteins with filtering and search.
+
+**Features:**
+- 📋 Sortable protein list
+- 🔎 Search by name or symbol
+- 🏷️ Filter by aging theory
+- 📊 Paper count per protein
+- 🔗 Click to view details
+
+### 3. Protein Detail (`/protein-detail/[symbol]`)
+
+Deep dive into individual proteins with comprehensive data.
+
+**Features:**
+- 🧬 Amino acid sequence with color-coded properties
+- 🔬 3D structure preview from RCSB PDB
+- 📖 Associated scientific papers
+- 🏷️ Aging theory classifications
+- 🔗 External links (UniProt, PDB, GenAge)
+
+### 4. 3D Structure Viewer
+
+Interactive protein structure visualization powered by RCSB PDB.
+
+**Features:**
+- 🖼️ High-quality structure images
+- 🔗 Click to open interactive 3D viewer
+- 📐 Multiple view modes (cartoon, surface, ball-stick)
+- 🔍 Zoom and rotate controls
+
+### 5. Protein Comparison (`/compare`)
+
+Compare up to 4 proteins side-by-side.
+
+**Features:**
+- ⚖️ Side-by-side comparison
+- 📊 Shared vs unique papers
+- 🏷️ Common aging theories
+- 📈 Publication timeline
+
+### 6. Statistics Dashboard (`/stats`)
+
+Explore dataset coverage and distributions.
+
+**Features:**
+- 📊 Protein coverage charts
+- 📈 Publication timeline
+- 🏷️ Theory distribution
+- 🧪 Mol-Instructions statistics
+
+### 7. Interactive Demo (`/demo`)
+
+Guided tour of all features with auto-play.
+
+**Features:**
+- 🎬 6 demo scenarios
+- ▶️ Auto-play mode
+- 📝 Expected highlights
+- 🔗 Direct execution links
+
+---
+
+## 🔬 Data Sources
+
+### GenAge Human Database
+- **Source**: Human Ageing Genomic Resources (https://genomics.senescence.info/)
+- **Content**: 308 genes/proteins associated with human aging
+- **Fields**: Gene symbol, name, aliases, chromosome location, description
+
+### Europe PMC Papers
+- **Source**: Europe PMC API (https://europepmc.org/)
+- **Content**: 7,018 scientific papers on aging proteins
+- **Fields**: Title, abstract, authors, year, PMID, PMCID, citations
+
+### Mol-Instructions Dataset
+- **Source**: Biomolecular instruction dataset
+- **Content**: 495,004 instruction-response pairs
+- **Usage**: Few-shot learning for protein understanding
+
+### RCSB Protein Data Bank
+- **Source**: RCSB PDB (https://www.rcsb.org/)
+- **Content**: 3D protein structure images and data
+- **Usage**: Structure visualization on protein detail pages
+
+### UniProt
+- **Source**: UniProt REST API (https://www.uniprot.org/)
+- **Content**: Protein sequences and annotations
+- **Usage**: Amino acid sequences for sequence panel
+
+---
+
+## 🛠️ API Reference
+
+### Query Endpoints
+
+#### Universal RAG Query
+```http
+POST /query/rag-general
+Content-Type: application/json
+
+Parameters:
+  query: string      # Any protein question
+  top_k: int         # Number of results (default: 10)
+  synthesize: bool   # Generate LLM answer (default: true)
+
+Response:
+{
+  "status": "success",
+  "query": "What is p53?",
+  "answer": "p53 is a tumor suppressor protein...",
+  "chunks": [...],
+  "citations": [...],
+  "metadata": {
+    "confidence": 0.85,
+    "proteins_mentioned": ["TP53"],
+    "theories_identified": ["genomic_instability"],
+    "query_time_ms": 1234
+  },
+  "aging_relevance": {
+    "has_aging_connection": true,
+    "relevance_score": 0.92,
+    "connections": ["DNA damage", "cellular senescence"],
+    "aging_theories": ["genomic_instability"]
+  }
+}
+```
+
+#### Filtered RAG Query
+```http
+POST /query/rag
+Parameters:
+  query: string
+  protein: string    # Filter by protein symbol
+  theories: array    # Filter by aging theories
+  top_k: int
+```
+
+### Protein Endpoints
+
+```http
+GET /proteins                    # List all proteins
+GET /protein/{symbol}            # Get protein details
+GET /protein/{symbol}/papers     # Get protein's papers
+GET /protein/{symbol}/uniprot    # Get UniProt data
+```
+
+### Statistics Endpoints
+
+```http
+GET /stats/coverage              # Dataset coverage stats
+GET /stats/theories              # Theory distribution
+GET /mol-instructions/stats      # ML instruction stats
+```
+
+---
+
+## 🐳 Docker Deployment
+
+### docker-compose.yml
+
+The project includes a complete Docker setup:
+
+```yaml
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - NEBIUS_API_KEY=${NEBIUS_API_KEY}
+    volumes:
+      - ./backend/faiss_store:/app/faiss_store
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    depends_on:
+      - backend
+```
+
+### Build and Run
+
+```bash
+# Build images
+docker-compose build
+
+# Start services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
 
 ---
 
 ## 📁 Project Structure
 
 ```
-├── backend/                            # FastAPI backend
-│   ├── app.py                          # Main FastAPI application
-│   ├── aging_relevance_analyzer.py     # Aging connection detection
-│   ├── protein_query_engine.py         # RAG query engine
-│   ├── genage_loader.py                # GenAge dataset loader
-│   ├── few_shot_prompt_builder.py      # Mol-Instructions integration
-│   └── mol_instructions_loader.py      # Few-shot learning data
-├── frontend/                           # Next.js frontend
+aging-proteins/
+├── backend/                          # FastAPI Backend
+│   ├── app.py                        # Main application & routes
+│   ├── protein_query_engine.py       # RAG query engine
+│   ├── aging_relevance_analyzer.py   # Aging detection AI
+│   ├── aging_theory_classifier.py    # Theory classification
+│   ├── genage_loader.py              # GenAge data loader
+│   ├── theory_loader.py              # Theory definitions
+│   ├── uniprot_client.py             # UniProt API client
+│   ├── few_shot_prompt_builder.py    # Mol-Instructions integration
+│   ├── mol_instructions_loader.py    # ML data loader
+│   ├── statistics_service.py         # Stats calculations
+│   ├── requirements.txt              # Python dependencies
+│   ├── Dockerfile                    # Backend container
+│   └── faiss_store/                  # Vector database
+│
+├── frontend/                         # Next.js Frontend
 │   ├── src/
-│   │   ├── app/
-│   │   │   ├── page.tsx                # Home page
-│   │   │   ├── query/                  # Query interface
-│   │   │   ├── proteins/               # Protein browser
-│   │   │   ├── protein-detail/         # Protein detail with 3D
-│   │   │   ├── theories/               # Aging theories explorer
-│   │   │   └── stats/                  # Dataset statistics
-│   │   ├── components/
-│   │   │   ├── QueryResults.tsx        # Enhanced results display
-│   │   │   ├── AgingRelevanceBadge.tsx # Aging analysis badge
-│   │   │   ├── StructureModal.tsx      # 3D fullscreen modal
-│   │   │   ├── ExampleQueries.tsx      # Example query cards
-│   │   │   └── Navigation.tsx          # Main navigation
-│   │   └── utils/
-│   │       └── proteinParser.tsx       # Protein name detection
-├── data/
-│   ├── raw/
-│   │   ├── genage_human.csv            # 308 aging proteins
-│   │   ├── epmc_papers/                # 7,018 papers
-│   │   └── mol_instructions/           # 495K instructions
-│   └── processed/
-│       └── faiss_index/                # Vector database
-├── docs/                               # Documentation
-│   ├── README.md                       # This file
-│   ├── QUICK_START_GUIDE.md            # Setup guide
-│   ├── RAG_UX_IMPROVEMENTS_GUIDE.md    # User guide
-│   └── HACKATHON_DEMO.md               # Demo script
-└── scripts/                            # Utility scripts
+│   │   ├── app/                      # Next.js App Router
+│   │   │   ├── page.tsx              # Home page
+│   │   │   ├── query/page.tsx        # Query interface
+│   │   │   ├── proteins/page.tsx     # Protein browser
+│   │   │   ├── protein-detail/       # Protein details
+│   │   │   ├── compare/page.tsx      # Comparison tool
+│   │   │   ├── stats/page.tsx        # Statistics
+│   │   │   ├── theories/page.tsx     # Theory explorer
+│   │   │   └── demo/page.tsx         # Interactive demo
+│   │   │
+│   │   ├── components/               # React Components
+│   │   │   ├── QueryInterface.tsx    # Search input
+│   │   │   ├── QueryResults.tsx      # Results display
+│   │   │   ├── ProteinCard.tsx       # Protein list item
+│   │   │   ├── SequencePanel.tsx     # Amino acid display
+│   │   │   ├── ProteinViewer.tsx     # 3D structure viewer
+│   │   │   ├── AgingRelevanceBadge.tsx
+│   │   │   ├── StatsDashboard.tsx
+│   │   │   ├── ProteinComparison.tsx
+│   │   │   ├── ExampleQueries.tsx
+│   │   │   ├── DemoMode.tsx
+│   │   │   └── Navigation.tsx
+│   │   │
+│   │   └── lib/
+│   │       └── api.ts                # API client
+│   │
+│   ├── package.json
+│   ├── Dockerfile                    # Frontend container
+│   └── next.config.js
+│
+├── data/                             # Data files
+│   ├── genage_human.csv              # 308 aging proteins
+│   └── papers/                       # Scientific papers
+│
+├── docker-compose.yml                # Container orchestration
+├── .env.example                      # Environment template
+└── README.md                         # This file
 ```
 
 ---
 
-## 🎨 Features Showcase
+## 🏆 Hackathon Highlights
 
-### Enhanced Citations
-![Citations](https://via.placeholder.com/800x200?text=Bold+Prominent+Citations)
-- Gradient backgrounds
-- Large clickable buttons
-- Hover animations
-- External link icons
-
-### 3D Protein Viewer
-![3D Viewer](https://via.placeholder.com/800x400?text=Interactive+3D+Protein+Structure)
-- Inline viewer on protein pages
-- Fullscreen modal mode
-- Rotate, zoom, pan controls
-- Multiple structure support
-
-### Aging Relevance Analysis
-![Aging Badge](https://via.placeholder.com/800x200?text=Aging+Relevance+Badge)
-- Automatic detection
-- Color-coded scores (High/Moderate/Low)
-- Connection list
-- Related aging theories
-
----
-
-## 🔬 Aging Theories Covered
-
-1. Genomic Instability
-2. Telomere Attrition
-3. Epigenetic Alterations
-4. Loss of Proteostasis
-5. Mitochondrial Dysfunction
-6. Cellular Senescence
-7. Stem Cell Exhaustion
-8. Altered Intercellular Communication
-9. Disabled Macroautophagy
-10. Chronic Inflammation
-11. Dysbiosis
-
----
-
-## 📖 API Documentation
-
-### Query Endpoints
-
-**General RAG Query** (NEW!)
-```
-POST /query/rag-general
-Parameters:
-  - query: string (any protein question)
-  - top_k: int (default: 10)
-  - synthesize: bool (default: true)
-
-Returns:
-  - answer: string
-  - chunks: array
-  - citations: array
-  - aging_relevance: object (NEW!)
-  - query_analysis: object (NEW!)
-```
-
-**Filtered RAG Query**
-```
-POST /query/rag
-Parameters:
-  - query: string
-  - protein: string (optional)
-  - theories: array (optional)
-  - top_k: int (default: 10)
-```
-
-**Protein Details**
-```
-GET /protein/{symbol}
-GET /protein/{symbol}/papers
-GET /protein/{symbol}/uniprot
-```
-
-**Statistics**
-```
-GET /stats/coverage
-GET /stats/theories
-GET /mol-instructions/stats
-```
-
----
-
-## 🎓 For Hackathon Judges
-
-### Innovation Highlights
+### Innovation Points
 
 1. **Universal RAG** - First aging protein system that answers ANY question
-2. **Automatic Aging Detection** - AI identifies aging connections automatically
+2. **Automatic Aging Detection** - AI identifies longevity connections automatically
 3. **3D Integration** - Seamless protein structure visualization
-4. **Enhanced UX** - Bold citations, collapsible sections, example queries
-5. **Comprehensive Dataset** - 308 proteins, 7K papers, 495K instructions
+4. **Comprehensive Dataset** - 308 proteins, 7K papers, 495K ML instructions
+5. **Beautiful UX** - Modern, accessible, researcher-friendly interface
 
 ### Technical Excellence
 
-- ✅ **Type-safe** - Full TypeScript coverage
-- ✅ **Performant** - Sub-second queries, lazy loading
-- ✅ **Accessible** - WCAG compliant, keyboard navigation
-- ✅ **Documented** - Complete user and technical guides
-- ✅ **Production-ready** - Error handling, caching, monitoring
+- ✅ **Full TypeScript** - Type-safe frontend
+- ✅ **FastAPI Backend** - High-performance Python API
+- ✅ **FAISS Vector DB** - Sub-second semantic search
+- ✅ **Docker Ready** - One-command deployment
+- ✅ **Responsive Design** - Works on all devices
+- ✅ **Accessible** - WCAG compliant
 
-### Demo Flow
+### Demo Flow for Judges
 
-1. **Home Page** → Shows dataset stats and features
-2. **Query Page** → Try "What is p53?" to see universal RAG
-3. **Protein Page** → Click any protein to see 3D structure
-4. **Stats Page** → View dataset coverage and distribution
-
----
-
-## 🧬 How to See the 3D Protein Viewer
-
-### Quick Access
-1. Go to `http://localhost:3000/proteins`
-2. Click on any protein (e.g., **APOE**, **TP53**, **SIRT6**)
-3. The 3D structure appears **at the top** of the protein detail page
-4. Click **"View [PDB_ID] in Fullscreen"** for fullscreen mode
-
-### Direct Links
-Try these direct links to see 3D structures immediately:
-- `http://localhost:3000/protein-detail/APOE`
-- `http://localhost:3000/protein-detail/TP53`
-- `http://localhost:3000/protein-detail/SIRT6`
-
-### Features
-- **Inline Viewer** - See structures directly on protein pages
-- **Fullscreen Modal** - Click for detailed exploration
-- **Interactive Controls** - Rotate, zoom, pan with mouse
-- **Multiple Structures** - Support for all PDB entries
-- **Molstar Integration** - Professional molecular visualization
+1. **Home** (`/`) - See platform overview and stats
+2. **Query** (`/query`) - Try "What is p53?" to see universal RAG
+3. **Proteins** (`/proteins`) - Browse the 308 aging proteins
+4. **Detail** (`/protein-detail/SIRT6`) - See 3D structure and sequence
+5. **Compare** (`/compare`) - Compare SIRT6 vs TP53
+6. **Stats** (`/stats`) - View dataset coverage
 
 ---
 
-## 📝 Documentation
+## 🔧 Configuration
 
-- **README.md** (this file) - Quick start and overview
-- **QUICK_START_GUIDE.md** - Detailed setup instructions
-- **RAG_UX_IMPROVEMENTS_GUIDE.md** - User guide for new features
-- **HACKATHON_DEMO.md** - 5-minute demo script for judges
+### Environment Variables
 
----
+```bash
+# Backend (.env)
+NEBIUS_API_KEY=your_api_key_here
+NEBIUS_MODEL=meta-llama/Meta-Llama-3.1-70B-Instruct
+FAISS_INDEX_PATH=./faiss_store
 
-## 🤝 Contributing
+# Frontend (.env.local)
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
 
-This project was built for the OpenLongevity HackAging.ai hackathon.
+### Customization
+
+- **Add proteins**: Update `data/genage_human.csv`
+- **Add papers**: Run paper indexing script
+- **Change LLM**: Update `NEBIUS_MODEL` in backend
+- **Modify UI**: Edit components in `frontend/src/components`
 
 ---
 
 ## 📄 License
 
-See LICENSE file for details.
+MIT License - See LICENSE file for details.
 
 ---
 
@@ -335,12 +552,20 @@ See LICENSE file for details.
 - **GenAge** - Human Ageing Genomic Resources
 - **Europe PMC** - Scientific paper corpus
 - **Mol-Instructions** - Biomolecular instruction dataset
-- **Molstar** - 3D protein visualization
+- **RCSB PDB** - Protein structure database
+- **UniProt** - Protein sequence database
 - **LlamaIndex** - RAG framework
-- **Nebius** - LLM API
+- **Nebius** - LLM API provider
 
 ---
 
-**Built with ❤️ for aging research**
+## 👥 Team
 
-🔗 [Live Demo](#) | 📊 [Dataset](#) | 📖 [Docs](#)
+Built with ❤️ for the OpenLongevity AISOC Hackathon
+
+---
+
+**🔗 Links**
+- Live Demo: [Coming Soon]
+- Documentation: This README
+- API Docs: http://localhost:8000/docs (when running)

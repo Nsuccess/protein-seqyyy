@@ -265,3 +265,8 @@ deployment_test/
 .Python
 pip-log.txt
 pip-delete-this-directory.txt
+
+# Large data files (too big for GitHub - download separately)
+data/raw/mol_instructions/
+data/stage1_5_llm_mapped.json
+data/corpus/

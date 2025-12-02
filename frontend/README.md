@@ -237,5 +237,5 @@ See main project LICENSE file.
 ## Acknowledgments
 
 - Design inspired by [WikiCrow](https://wikicrow.ai)
-- Built for HackAging 2025 Sequence-to-Function Challenge
+- Built for OpenLongevity AISOC's Hackathon
 - Data sources: UniProt, GenAge, PubChem, PubMed

@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import ProteinViewer from '@/components/viewer/ProteinViewer';
-import StructureModal from '@/components/StructureModal';
+import SequencePanel from '@/components/SequencePanel';
+import { apiEndpoint } from '@/lib/api';
 
 interface ProteinInfo {
   symbol: string;
@@ -26,7 +27,7 @@ interface Paper {
 interface UniProtData {
   sequence?: string;
   sequence_length?: number;
-  pdb_ids?: string[];
+  structure?: { pdb_ids: string[]; pdb_count: number; };
 }
 
 export default function ProteinDetailPage() {
@@ -38,34 +39,28 @@ export default function ProteinDetailPage() {
   const [uniprotData, setUniprotData] = useState<UniProtData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | string>('all');
-  const [showStructureModal, setShowStructureModal] = useState(false);
-  const [selectedPdbId, setSelectedPdbId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'structure' | 'papers'>('overview');
 
   useEffect(() => {
     const fetchData = async () => {
       if (!symbol) return;
-      
       setLoading(true);
       setError(null);
 
       try {
-        // Fetch protein info
-        const infoRes = await fetch(`http://localhost:8000/protein/${symbol}`);
+        const infoRes = await fetch(apiEndpoint(`/protein/${symbol}`));
         if (!infoRes.ok) throw new Error('Protein not found');
         const info = await infoRes.json();
         setProteinInfo(info);
 
-        // Fetch papers
-        const papersRes = await fetch(`http://localhost:8000/protein/${symbol}/papers?limit=50`);
+        const papersRes = await fetch(apiEndpoint(`/protein/${symbol}/papers?limit=20`));
         if (papersRes.ok) {
           const papersData = await papersRes.json();
           setPapers(papersData.papers || []);
         }
 
-        // Fetch UniProt data
         try {
-          const uniprotRes = await fetch(`http://localhost:8000/protein/${symbol}/uniprot`);
+          const uniprotRes = await fetch(apiEndpoint(`/protein/${symbol}/uniprot`));
           if (uniprotRes.ok) {
             const uniprotInfo = await uniprotRes.json();
             setUniprotData(uniprotInfo);
@@ -79,33 +74,20 @@ export default function ProteinDetailPage() {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [symbol]);
 
-  const formatTheoryName = (theory: string) => {
-    return theory.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  };
-
-  const getTheories = () => {
-    const theories = new Set<string>();
-    papers.forEach(paper => {
-      paper.theories.forEach(theory => theories.add(theory));
-    });
-    return Array.from(theories).sort();
-  };
-
-  const getFilteredPapers = () => {
-    if (activeTab === 'all') return papers;
-    return papers.filter(paper => paper.theories.includes(activeTab));
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0a0f1a] flex items-center justify-center">
         <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--accent-primary)] border-t-transparent mx-auto" />
-          <p className="mt-4 text-sm text-[var(--foreground-muted)]">Loading protein data...</p>
+          <div className="relative">
+            <div className="h-16 w-16 animate-spin rounded-full border-4 border-blue-500/20 border-t-blue-500 mx-auto"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-2xl">🧬</span>
+            </div>
+          </div>
+          <p className="mt-4 text-sm text-slate-400">Loading protein data...</p>
         </div>
       </div>
     );
@@ -113,10 +95,13 @@ export default function ProteinDetailPage() {
 
   if (error || !proteinInfo) {
     return (
-      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600">{error || 'Protein not found'}</p>
-          <Link href="/proteins" className="mt-4 inline-block text-[var(--accent-primary)] hover:underline">
+      <div className="min-h-screen bg-[#0a0f1a] flex items-center justify-center">
+        <div className="text-center max-w-md px-6">
+          <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <p className="text-red-400 font-medium mb-2">{error || 'Protein not found'}</p>
+          <Link href="/proteins" className="text-blue-400 hover:underline text-sm">
             ← Back to proteins
           </Link>
         </div>
@@ -124,231 +109,327 @@ export default function ProteinDetailPage() {
     );
   }
 
-  const theories = getTheories();
-  const filteredPapers = getFilteredPapers();
+  const hasPdbStructure = (uniprotData?.structure?.pdb_ids?.length ?? 0) > 0;
+  const hasSequence = uniprotData?.sequence && uniprotData.sequence.length > 0;
 
   return (
-    <div className="min-h-screen bg-[var(--background)]">
-      {/* Header */}
-      <header className="border-b border-[var(--border-color)] bg-white/70 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex items-center justify-between mb-4">
-            <Link
-              href="/proteins"
-              className="text-sm text-[var(--foreground-subtle)] hover:text-[var(--accent-primary)] transition-colors"
-            >
-              ← Back to proteins
+    <div className="min-h-screen bg-[#0a0f1a]">
+      {/* Navigation */}
+      <nav className="border-b border-white/5">
+        <div className="mx-auto max-w-7xl px-6 py-4">
+          <div className="flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                <span className="text-xl">🧬</span>
+              </div>
+              <span className="text-lg font-semibold text-white">AgingProteins.ai</span>
             </Link>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-6">
+              <Link href="/query" className="text-sm text-slate-400 hover:text-white transition-colors">AI Search</Link>
+              <Link href="/proteins" className="text-sm text-slate-400 hover:text-white transition-colors">Proteins</Link>
+              <Link href="/theories" className="text-sm text-slate-400 hover:text-white transition-colors">Theories</Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Header */}
+      <header className="border-b border-white/5 bg-gradient-to-b from-[#0d1525] to-[#0a0f1a]">
+        <div className="mx-auto max-w-7xl px-6 py-12">
+          <div className="flex items-center gap-2 text-sm text-slate-500 mb-6">
+            <Link href="/" className="hover:text-white transition-colors">Home</Link>
+            <span>/</span>
+            <Link href="/proteins" className="hover:text-white transition-colors">Proteins</Link>
+            <span>/</span>
+            <span className="text-white">{proteinInfo.symbol}</span>
+          </div>
+          
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                  <span className="text-3xl">🧬</span>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-widest text-blue-400 mb-1">Aging-Related Protein</p>
+                  <h1 className="text-4xl font-bold text-white">{proteinInfo.symbol}</h1>
+                </div>
+              </div>
+              <p className="text-lg text-slate-400 max-w-2xl">{proteinInfo.name}</p>
+              
+              {proteinInfo.categories?.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {proteinInfo.categories.map(cat => (
+                    <span key={cat} className="rounded-full bg-purple-500/20 px-3 py-1 text-xs font-medium text-purple-400">
+                      {cat}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="flex flex-wrap gap-3">
               {proteinInfo.uniprot && (
                 <a
                   href={`https://www.uniprot.org/uniprotkb/${proteinInfo.uniprot}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-lg border border-[var(--border-color)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:border-[var(--accent-primary)] transition-colors"
+                  className="px-4 py-2 rounded-lg border border-white/10 bg-white/5 text-sm text-slate-400 hover:bg-white/10 transition-colors flex items-center gap-2"
                 >
-                  UniProt →
+                  <span>UniProt</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
                 </a>
               )}
+              <Link
+                href={`/query?q=What%20is%20the%20role%20of%20${proteinInfo.symbol}%20in%20aging`}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-sm text-white font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+              >
+                <span>Ask AI</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </Link>
             </div>
-          </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.45em] text-[var(--accent-primary)]">
-              Aging Protein
-            </p>
-            <h1 className="mt-2 text-4xl font-bold text-[var(--foreground)]">
-              {proteinInfo.symbol}
-            </h1>
-            <p className="mt-2 text-lg text-[var(--foreground-muted)]">
-              {proteinInfo.name}
-            </p>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-6 py-8 space-y-8">
-        {/* Overview Card */}
-        <div className="rounded-3xl border border-[var(--border-color)] bg-white p-8 shadow-[var(--shadow-soft)]">
-          <h2 className="text-xl font-semibold text-[var(--foreground)] mb-4">
-            Why Aging-Related
-          </h2>
-          <p className="text-[var(--foreground-muted)] leading-relaxed">
-            {proteinInfo.why}
-          </p>
-          {proteinInfo.categories && proteinInfo.categories.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {proteinInfo.categories.map(cat => (
-                <span
-                  key={cat}
-                  className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-medium text-[var(--accent-primary)]"
-                >
-                  {cat}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 3D Structure Card */}
-        {uniprotData?.pdb_ids && uniprotData.pdb_ids.length > 0 && (
-          <div className="rounded-3xl border-2 border-green-200 bg-white p-8 shadow-[var(--shadow-soft)]">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">🧬</span>
-                <div>
-                  <h2 className="text-2xl font-bold text-[var(--foreground)]">
-                    3D Structure
-                  </h2>
-                  <p className="text-sm text-[var(--foreground-subtle)] mt-1">
-                    Interactive molecular visualization
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                {uniprotData.pdb_ids.slice(0, 3).map(pdbId => (
-                  <button
-                    key={pdbId}
-                    onClick={() => {
-                      setSelectedPdbId(pdbId);
-                      setShowStructureModal(true);
-                    }}
-                    className="rounded-lg border-2 border-green-300 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-100 hover:scale-105 transition-all shadow-sm"
-                  >
-                    View {pdbId} in Fullscreen
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="rounded-xl overflow-hidden border-2 border-[var(--border-color)]">
-              <ProteinViewer pdbId={uniprotData.pdb_ids[0]} />
-            </div>
+      {/* Tab Navigation */}
+      <div className="border-b border-white/5 bg-[#0d1525]/50">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-6 py-4 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === 'overview'
+                  ? 'text-blue-400 border-blue-400'
+                  : 'text-slate-400 border-transparent hover:text-white'
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('structure')}
+              className={`px-6 py-4 text-sm font-medium transition-colors border-b-2 flex items-center gap-2 ${
+                activeTab === 'structure'
+                  ? 'text-green-400 border-green-400'
+                  : 'text-slate-400 border-transparent hover:text-white'
+              }`}
+            >
+              Structure & Sequence
+              {hasPdbStructure && (
+                <span className="px-1.5 py-0.5 text-xs bg-green-500/20 text-green-400 rounded">3D</span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('papers')}
+              className={`px-6 py-4 text-sm font-medium transition-colors border-b-2 flex items-center gap-2 ${
+                activeTab === 'papers'
+                  ? 'text-purple-400 border-purple-400'
+                  : 'text-slate-400 border-transparent hover:text-white'
+              }`}
+            >
+              Papers
+              <span className="px-1.5 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded">{papers.length}</span>
+            </button>
           </div>
-        )}
+        </div>
+      </div>
 
-        {/* Sequence Card */}
-        {uniprotData?.sequence && (
-          <div className="rounded-3xl border border-[var(--border-color)] bg-white p-8 shadow-[var(--shadow-soft)]">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-xl font-semibold text-[var(--foreground)]">
-                  Amino Acid Sequence
-                </h2>
-                <p className="text-sm text-[var(--foreground-subtle)] mt-1">
-                  {uniprotData.sequence_length} amino acids
+
+      {/* Main Content */}
+      <main className="mx-auto max-w-7xl px-6 py-8">
+        {/* Overview Tab */}
+        {activeTab === 'overview' && (
+          <div className="space-y-8">
+            {/* Why Aging-Related */}
+            <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-8">
+              <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                <span className="text-2xl">🔬</span>
+                Why Aging-Related
+              </h2>
+              <p className="text-slate-400 leading-relaxed text-lg">{proteinInfo.why}</p>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-6">
+                <p className="text-sm text-slate-500 mb-2">Associated Papers</p>
+                <p className="text-3xl font-bold text-blue-400">{papers.length}</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-6">
+                <p className="text-sm text-slate-500 mb-2">Sequence Length</p>
+                <p className="text-3xl font-bold text-green-400">
+                  {uniprotData?.sequence_length || uniprotData?.sequence?.length || '—'} aa
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-6">
+                <p className="text-sm text-slate-500 mb-2">PDB Structures</p>
+                <p className="text-3xl font-bold text-purple-400">
+                  {uniprotData?.structure?.pdb_count || 0}
                 </p>
               </div>
             </div>
-            <div className="rounded-lg bg-[var(--background)] p-4 font-mono text-xs leading-relaxed overflow-x-auto">
-              {uniprotData.sequence.match(/.{1,60}/g)?.join('\n')}
+
+            {/* Preview Cards */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* 3D Structure Preview */}
+              {hasPdbStructure && (
+                <div 
+                  className="rounded-2xl border border-green-500/20 bg-green-500/5 p-6 cursor-pointer hover:border-green-500/40 transition-colors"
+                  onClick={() => setActiveTab('structure')}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                      <span>🧬</span> 3D Structure Available
+                    </h3>
+                    <span className="text-green-400 text-sm">View →</span>
+                  </div>
+                  <p className="text-slate-400 text-sm">
+                    Interactive molecular visualization from PDB: {uniprotData?.structure?.pdb_ids?.[0]}
+                  </p>
+                </div>
+              )}
+
+              {/* Papers Preview */}
+              {papers.length > 0 && (
+                <div 
+                  className="rounded-2xl border border-purple-500/20 bg-purple-500/5 p-6 cursor-pointer hover:border-purple-500/40 transition-colors"
+                  onClick={() => setActiveTab('papers')}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                      <span>📚</span> Research Papers
+                    </h3>
+                    <span className="text-purple-400 text-sm">View all →</span>
+                  </div>
+                  <p className="text-slate-400 text-sm">
+                    {papers.length} papers linking {proteinInfo.symbol} to aging research
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Papers Section with Theory Tabs */}
-        <div className="rounded-3xl border border-[var(--border-color)] bg-white p-8 shadow-[var(--shadow-soft)]">
-          <h2 className="text-xl font-semibold text-[var(--foreground)] mb-6">
-            Associated Papers ({papers.length})
-          </h2>
-
-          {/* Theory Tabs */}
-          {theories.length > 0 && (
-            <div className="mb-6 border-b border-[var(--border-color)]">
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                <button
-                  onClick={() => setActiveTab('all')}
-                  className={`whitespace-nowrap rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
-                    activeTab === 'all'
-                      ? 'border-b-2 border-[var(--accent-primary)] text-[var(--accent-primary)]'
-                      : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
-                  }`}
-                >
-                  All Papers ({papers.length})
-                </button>
-                {theories.map(theory => {
-                  const count = papers.filter(p => p.theories.includes(theory)).length;
-                  return (
-                    <button
-                      key={theory}
-                      onClick={() => setActiveTab(theory)}
-                      className={`whitespace-nowrap rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
-                        activeTab === theory
-                          ? 'border-b-2 border-purple-600 text-purple-600'
-                          : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
-                      }`}
-                    >
-                      {formatTheoryName(theory)} ({count})
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Papers List */}
-          <div className="space-y-3">
-            {filteredPapers.length === 0 ? (
-              <p className="text-center text-[var(--foreground-subtle)] py-8">
-                No papers found for this filter
-              </p>
+        {/* Structure Tab */}
+        {activeTab === 'structure' && (
+          <div className="space-y-8">
+            {/* 3D Viewer */}
+            {hasPdbStructure ? (
+              <ProteinViewer 
+                pdbId={uniprotData!.structure!.pdb_ids[0]} 
+                description={`Crystal structure of ${proteinInfo.name}`}
+                height="500px"
+              />
             ) : (
-              filteredPapers.map(paper => (
-                <div
-                  key={paper.pmcid}
-                  className="rounded-xl border border-[var(--border-color)] bg-[var(--background)] p-4 hover:border-[var(--accent-primary)] transition-colors"
+              <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-12 text-center">
+                <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">🧬</span>
+                </div>
+                <p className="text-slate-400 mb-2">No experimental structure available</p>
+                <a
+                  href={`https://alphafold.ebi.ac.uk/search/text/${proteinInfo.symbol}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:underline text-sm"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-[var(--foreground)] leading-snug">
-                        {paper.title}
-                      </h3>
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--foreground-subtle)]">
-                        <span>{paper.year}</span>
-                        {paper.pmid && (
-                          <>
-                            <span>•</span>
-                            <a
-                              href={`https://europepmc.org/article/MED/${paper.pmid}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[var(--accent-primary)] hover:underline"
-                            >
-                              PMID: {paper.pmid}
-                            </a>
-                          </>
-                        )}
-                        <span>•</span>
-                        <span>Score: {(paper.relevance_score * 100).toFixed(1)}%</span>
-                      </div>
-                      {paper.theories.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-1">
-                          {paper.theories.map(theory => (
-                            <span
-                              key={theory}
-                              className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700"
-                            >
-                              {formatTheoryName(theory)}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                  Check AlphaFold for predicted structure →
+                </a>
+              </div>
+            )}
+
+            {/* Other PDB structures */}
+            {uniprotData?.structure?.pdb_ids && uniprotData.structure.pdb_ids.length > 1 && (
+              <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Other Available Structures</h3>
+                <div className="flex flex-wrap gap-2">
+                  {uniprotData.structure.pdb_ids.slice(1).map(pdbId => (
+                    <a
+                      key={pdbId}
+                      href={`https://www.rcsb.org/structure/${pdbId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-2 rounded-lg bg-white/5 text-slate-400 text-sm hover:bg-white/10 transition-colors"
+                    >
+                      {pdbId}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sequence Panel */}
+            {hasSequence && (
+              <SequencePanel
+                sequence={uniprotData!.sequence!}
+                proteinName={proteinInfo.name}
+                uniprotId={proteinInfo.uniprot}
+                length={uniprotData?.sequence_length}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Papers Tab */}
+        {activeTab === 'papers' && (
+          <div className="space-y-4">
+            {papers.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-12 text-center">
+                <p className="text-slate-400">No papers found for this protein</p>
+              </div>
+            ) : (
+              papers.map(paper => (
+                <div key={paper.pmcid} className="rounded-2xl border border-white/10 bg-[#0d1525] p-6 hover:border-purple-500/30 transition-colors">
+                  <h3 className="font-medium text-white leading-snug mb-3">{paper.title}</h3>
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 mb-3">
+                    <span className="flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      {paper.year}
+                    </span>
+                    {paper.pmid && (
+                      <a
+                        href={`https://pubmed.ncbi.nlm.nih.gov/${paper.pmid}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:underline"
+                      >
+                        PMID: {paper.pmid}
+                      </a>
+                    )}
+                    <span className="flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      Score: {(paper.relevance_score * 100).toFixed(0)}%
+                    </span>
                   </div>
+                  {paper.theories?.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {paper.theories.map(theory => (
+                        <span key={theory} className="rounded-full bg-purple-500/20 px-2 py-0.5 text-xs text-purple-300">
+                          {theory.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))
             )}
           </div>
-        </div>
+        )}
       </main>
 
-      {/* Structure Modal */}
-      {selectedPdbId && (
-        <StructureModal
-          isOpen={showStructureModal}
-          onClose={() => setShowStructureModal(false)}
-          proteinSymbol={proteinInfo.symbol}
-          pdbId={selectedPdbId}
-        />
-      )}
+      {/* Footer */}
+      <footer className="border-t border-white/5 py-8 mt-12">
+        <div className="mx-auto max-w-7xl px-6 text-center">
+          <p className="text-sm text-slate-500">AgingProteins.ai — AI-Powered Aging Research Platform</p>
+        </div>
+      </footer>
     </div>
   );
 }

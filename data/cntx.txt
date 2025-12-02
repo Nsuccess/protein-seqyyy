@@ -1,0 +1,79 @@
+Absolutely — focusing **only on the `Ctrl Alt Del` repo** (the aging theory repository) and ignoring slides, videos, and anything unnecessary for the AI reasoning pipeline, here’s the **exact list of files and folders you need**:
+
+---
+
+## **Files to Keep**
+
+1. **Structured LLM-processed theory data**
+
+   ```
+   C:\Users\NewUserName\Desktop\ctrl alt del\additional_files\stage1_5_llm_mapped.json
+   ```
+
+2. **Main enriched theory data**
+
+   ```
+   C:\Users\NewUserName\Desktop\ctrl alt del\combined_results_enriched_short.xlsx
+   C:\Users\NewUserName\Desktop\ctrl alt del\combined_results_enriched_theory_stats.xlsx
+   ```
+
+3. **Strict criteria / high-confidence theory data**
+
+   ```
+   C:\Users\NewUserName\Desktop\ctrl alt del\strict_criteria_results\combined_results_REFINED_extended_REFINED.xlsx
+   C:\Users\NewUserName\Desktop\ctrl alt del\strict_criteria_results\combined_results_REFINED_short_REFINED.xlsx
+   C:\Users\NewUserName\Desktop\ctrl alt del\strict_criteria_results\combined_results_REFINED_theory_stats_REFINED.xlsx
+   ```
+
+---
+
+## **Folders to Keep**
+
+* `additional_files/` → contains `stage1_5_llm_mapped.json`
+* `strict_criteria_results/` → contains all strict/refined Excel files
+
+---
+
+## **Folders / Files to Ignore**
+
+* `slides_video/` → PPTX / MP4 presentation files (not needed for AI reasoning)
+* Any other non-data scripts or documentation unless directly used in processing
+
+---
+
+✅ **Summary:** You only need **6 files** across **2 folders**:
+
+```
+Ctrl Alt Del/
+├── additional_files/
+│   └── stage1_5_llm_mapped.json
+├── strict_criteria_results/
+│   ├── combined_results_REFINED_extended_REFINED.xlsx
+│   ├── combined_results_REFINED_short_REFINED.xlsx
+│   └── combined_results_REFINED_theory_stats_REFINED.xlsx
+├── combined_results_enriched_short.xlsx
+└── combined_results_enriched_theory_stats.xlsx
+```
+
+These files give you all the structured theory definitions, scoring metrics, and high-confidence evaluations to feed into your RAG + multi-agent AI pipeline.
+
+---
+
+If you want, I can **next create a “Ctrl Alt Del → Unified JSON schema” plan**, showing exactly how to normalize all these files for your hackathon-ready knowledge graph. This will save tons of time later.
+
+Do you want me to do that?
+
+
+Yes — that’s exactly it. ✅
+
+All **6 files** you listed are the ones you need from the `Ctrl Alt Del` repo. They cover:
+
+1. **Structured theory definitions** → `stage1_5_llm_mapped.json`
+2. **Enriched theory data** → `combined_results_enriched_short.xlsx` & `combined_results_enriched_theory_stats.xlsx`
+3. **Strict / high-confidence evaluations** → the three `REFINED` Excel files
+
+With just these, you have everything required to build your **knowledge graph, RAG embeddings, and multi-agent reasoning pipeline**.
+
+Everything else (slides, videos, extra docs) can be ignored for now.
+
+If you want, I can make the **next step: a unified JSON schema plan** to combine all these files neatly for your AI pipeline.

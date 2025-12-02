@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Enable standalone output for Docker deployment
+  output: 'standalone',
+  
   webpack: (config, { isServer }) => {
     // Handle node modules that don't work in browser
     if (!isServer) {

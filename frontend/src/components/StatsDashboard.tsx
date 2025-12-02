@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MolInstructionsStats from './MolInstructionsStats';
+import { apiEndpoint } from '@/lib/api';
 
 interface CoverageStats {
   total_genage_proteins: number;
@@ -75,7 +76,7 @@ export default function StatsDashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch('http://localhost:8000/stats/comprehensive');
+        const response = await fetch(apiEndpoint('/stats/comprehensive'));
         if (!response.ok) {
           throw new Error('Failed to fetch statistics');
         }
@@ -96,8 +97,8 @@ export default function StatsDashboard() {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="inline-flex items-center gap-3">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--accent-primary)] border-t-transparent" />
-          <span className="text-sm font-medium text-[var(--foreground-muted)]">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+          <span className="text-sm font-medium text-slate-400">
             Loading statistics...
           </span>
         </div>
@@ -107,8 +108,8 @@ export default function StatsDashboard() {
 
   if (error || !stats) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
-        <p className="text-sm text-red-700">
+      <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-6">
+        <p className="text-sm text-red-400">
           {error || 'Failed to load statistics'}
         </p>
       </div>
@@ -133,86 +134,87 @@ export default function StatsDashboard() {
     <div className="space-y-6 md:space-y-8">
       {/* Key Metrics Cards */}
       <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-[var(--border-color)] bg-gradient-to-br from-blue-50 to-white p-6 shadow-[var(--shadow-soft)]">
+        <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-6">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-blue-100 p-2">
-              <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="rounded-lg bg-blue-500/20 p-2">
+              <svg className="h-6 w-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <div>
-              <p className="text-sm text-[var(--foreground-subtle)]">Protein Coverage</p>
-              <p className="text-2xl font-bold text-[var(--foreground)]">
+              <p className="text-sm text-slate-500">Protein Coverage</p>
+              <p className="text-2xl font-bold text-white">
                 {stats.coverage.coverage_percentage}%
               </p>
             </div>
           </div>
-          <p className="mt-3 text-xs text-[var(--foreground-muted)]">
+          <p className="mt-3 text-xs text-slate-500">
             {stats.coverage.proteins_with_papers} of {stats.coverage.total_genage_proteins} proteins
           </p>
         </div>
 
-        <div className="rounded-2xl border border-[var(--border-color)] bg-gradient-to-br from-purple-50 to-white p-6 shadow-[var(--shadow-soft)]">
+        <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-6">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-purple-100 p-2">
-              <svg className="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="rounded-lg bg-purple-500/20 p-2">
+              <svg className="h-6 w-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
               </svg>
             </div>
             <div>
-              <p className="text-sm text-[var(--foreground-subtle)]">Total Papers</p>
-              <p className="text-2xl font-bold text-[var(--foreground)]">
+              <p className="text-sm text-slate-500">Total Papers</p>
+              <p className="text-2xl font-bold text-white">
                 {stats.quality.total_papers.toLocaleString()}
               </p>
             </div>
           </div>
-          <p className="mt-3 text-xs text-[var(--foreground-muted)]">
+          <p className="mt-3 text-xs text-slate-500">
             Indexed in corpus
           </p>
         </div>
 
-        <div className="rounded-2xl border border-[var(--border-color)] bg-gradient-to-br from-green-50 to-white p-6 shadow-[var(--shadow-soft)]">
+        <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-6">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-green-100 p-2">
-              <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="rounded-lg bg-green-500/20 p-2">
+              <svg className="h-6 w-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
             <div>
-              <p className="text-sm text-[var(--foreground-subtle)]">Theories</p>
-              <p className="text-2xl font-bold text-[var(--foreground)]">
+              <p className="text-sm text-slate-500">Theories</p>
+              <p className="text-2xl font-bold text-white">
                 {stats.theories.theories_identified}
               </p>
             </div>
           </div>
-          <p className="mt-3 text-xs text-[var(--foreground-muted)]">
+          <p className="mt-3 text-xs text-slate-500">
             Aging hallmarks identified
           </p>
         </div>
 
-        <div className="rounded-2xl border border-[var(--border-color)] bg-gradient-to-br from-orange-50 to-white p-6 shadow-[var(--shadow-soft)]">
+        <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-6">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-orange-100 p-2">
-              <svg className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="rounded-lg bg-orange-500/20 p-2">
+              <svg className="h-6 w-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <div>
-              <p className="text-sm text-[var(--foreground-subtle)]">Recent Papers</p>
-              <p className="text-2xl font-bold text-[var(--foreground)]">
+              <p className="text-sm text-slate-500">Recent Papers</p>
+              <p className="text-2xl font-bold text-white">
                 {stats.quality.recent_papers.percentage}%
               </p>
             </div>
           </div>
-          <p className="mt-3 text-xs text-[var(--foreground-muted)]">
+          <p className="mt-3 text-xs text-slate-500">
             Published in last 5 years
           </p>
         </div>
       </div>
 
+
       {/* Coverage Pie Chart */}
-      <div className="rounded-3xl border border-[var(--border-color)] bg-white p-4 sm:p-6 md:p-8 shadow-[var(--shadow-soft)]">
-        <h2 className="mb-4 md:mb-6 text-lg sm:text-xl font-semibold text-[var(--foreground)]">
+      <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-4 sm:p-6 md:p-8">
+        <h2 className="mb-4 md:mb-6 text-lg sm:text-xl font-semibold text-white">
           Protein Coverage Distribution
         </h2>
         <div className="grid gap-6 md:gap-8 md:grid-cols-2">
@@ -220,24 +222,22 @@ export default function StatsDashboard() {
           <div className="flex items-center justify-center py-4">
             <div className="relative h-48 w-48 sm:h-56 sm:w-56 md:h-64 md:w-64">
               <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-                {/* Proteins with papers */}
                 <circle
                   cx="50"
                   cy="50"
                   r="40"
                   fill="none"
-                  stroke="var(--accent-primary)"
+                  stroke="#3b82f6"
                   strokeWidth="20"
                   strokeDasharray={`${stats.coverage.coverage_percentage * 2.51} 251`}
                   className="transition-all duration-500"
                 />
-                {/* Proteins without papers */}
                 <circle
                   cx="50"
                   cy="50"
                   r="40"
                   fill="none"
-                  stroke="#e5e7eb"
+                  stroke="rgba(255,255,255,0.1)"
                   strokeWidth="20"
                   strokeDasharray={`${(100 - stats.coverage.coverage_percentage) * 2.51} 251`}
                   strokeDashoffset={`-${stats.coverage.coverage_percentage * 2.51}`}
@@ -245,43 +245,37 @@ export default function StatsDashboard() {
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <p className="text-2xl sm:text-3xl font-bold text-[var(--foreground)]">
+                <p className="text-2xl sm:text-3xl font-bold text-white">
                   {stats.coverage.coverage_percentage}%
                 </p>
-                <p className="text-xs text-[var(--foreground-subtle)]">Coverage</p>
+                <p className="text-xs text-slate-500">Coverage</p>
               </div>
             </div>
           </div>
 
           {/* Legend and Details */}
           <div className="flex flex-col justify-center space-y-4">
-            <div className="flex items-center justify-between rounded-lg border border-[var(--border-color)] bg-[var(--background)] p-4">
+            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-4">
               <div className="flex items-center gap-3">
-                <div className="h-4 w-4 rounded-full bg-[var(--accent-primary)]" />
-                <span className="text-sm font-medium text-[var(--foreground)]">
-                  With Papers
-                </span>
+                <div className="h-4 w-4 rounded-full bg-blue-500" />
+                <span className="text-sm font-medium text-white">With Papers</span>
               </div>
-              <span className="text-lg font-bold text-[var(--foreground)]">
+              <span className="text-lg font-bold text-white">
                 {stats.coverage.proteins_with_papers}
               </span>
             </div>
-            <div className="flex items-center justify-between rounded-lg border border-[var(--border-color)] bg-[var(--background)] p-4">
+            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-4">
               <div className="flex items-center gap-3">
-                <div className="h-4 w-4 rounded-full bg-gray-300" />
-                <span className="text-sm font-medium text-[var(--foreground)]">
-                  Without Papers
-                </span>
+                <div className="h-4 w-4 rounded-full bg-slate-600" />
+                <span className="text-sm font-medium text-white">Without Papers</span>
               </div>
-              <span className="text-lg font-bold text-[var(--foreground)]">
+              <span className="text-lg font-bold text-white">
                 {stats.coverage.proteins_without_papers}
               </span>
             </div>
-            <div className="mt-4 rounded-lg bg-[var(--accent-soft)] p-4">
-              <p className="text-xs font-semibold text-[var(--accent-primary)]">
-                Distribution Summary
-              </p>
-              <div className="mt-2 space-y-1 text-xs text-[var(--foreground-muted)]">
+            <div className="mt-4 rounded-lg bg-blue-500/10 p-4 border border-blue-500/20">
+              <p className="text-xs font-semibold text-blue-400">Distribution Summary</p>
+              <div className="mt-2 space-y-1 text-xs text-slate-400">
                 <p>• {stats.coverage.distribution_summary.proteins_with_1_paper} proteins with 1 paper</p>
                 <p>• {stats.coverage.distribution_summary.proteins_with_2_5_papers} proteins with 2-5 papers</p>
                 <p>• {stats.coverage.distribution_summary.proteins_with_6_10_papers} proteins with 6-10 papers</p>
@@ -293,12 +287,12 @@ export default function StatsDashboard() {
       </div>
 
       {/* Theory Distribution Bar Chart */}
-      <div className="rounded-3xl border border-[var(--border-color)] bg-white p-4 sm:p-6 md:p-8 shadow-[var(--shadow-soft)]">
+      <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-4 sm:p-6 md:p-8">
         <div className="mb-4 md:mb-6">
-          <h2 className="text-lg sm:text-xl font-semibold text-[var(--foreground)]">
+          <h2 className="text-lg sm:text-xl font-semibold text-white">
             Aging Theory Distribution
           </h2>
-          <p className="mt-1 text-xs sm:text-sm text-[var(--foreground-subtle)]">
+          <p className="mt-1 text-xs sm:text-sm text-slate-500">
             Click on a theory to search related papers
           </p>
         </div>
@@ -316,34 +310,33 @@ export default function StatsDashboard() {
                 onMouseLeave={() => setHoveredTheory(null)}
               >
                 <div className="mb-1 flex items-center justify-between text-xs sm:text-sm">
-                  <span className="font-medium text-[var(--foreground)] truncate pr-2">
+                  <span className="font-medium text-white truncate pr-2">
                     {formatTheoryName(theory.theory)}
                   </span>
-                  <span className="text-[var(--foreground-subtle)] whitespace-nowrap text-xs">
+                  <span className="text-slate-500 whitespace-nowrap text-xs">
                     {theory.paper_count} ({theory.percentage}%)
                   </span>
                 </div>
                 <button
                   onClick={() => handleTheoryClick(theory.theory)}
-                  className="h-6 sm:h-8 w-full overflow-hidden rounded-lg bg-gray-100 cursor-pointer transition-all hover:shadow-md"
+                  className="h-6 sm:h-8 w-full overflow-hidden rounded-lg bg-white/5 cursor-pointer transition-all hover:shadow-md"
                   aria-label={`Search papers about ${formatTheoryName(theory.theory)}`}
                 >
                   <div
-                    className="h-full rounded-lg bg-gradient-to-r from-purple-500 to-purple-600 transition-all duration-500 group-hover:from-purple-600 group-hover:to-purple-700"
+                    className="h-full rounded-lg bg-gradient-to-r from-purple-500 to-purple-600 transition-all duration-500 group-hover:from-purple-400 group-hover:to-purple-500"
                     style={{ width: `${widthPercentage}%` }}
                   />
                 </button>
                 
-                {/* Tooltip */}
                 {isHovered && (
-                  <div className="absolute left-0 right-0 top-full mt-2 z-10 rounded-lg border border-purple-200 bg-white p-3 shadow-lg">
-                    <p className="text-xs font-semibold text-purple-900">
+                  <div className="absolute left-0 right-0 top-full mt-2 z-10 rounded-lg border border-purple-500/30 bg-[#0d1525] p-3 shadow-lg">
+                    <p className="text-xs font-semibold text-purple-300">
                       {formatTheoryName(theory.theory)}
                     </p>
-                    <p className="mt-1 text-xs text-[var(--foreground-muted)]">
+                    <p className="mt-1 text-xs text-slate-400">
                       {theory.paper_count} papers ({theory.percentage}% of corpus)
                     </p>
-                    <p className="mt-2 text-xs text-purple-600">
+                    <p className="mt-2 text-xs text-purple-400">
                       Click to search papers →
                     </p>
                   </div>
@@ -355,12 +348,12 @@ export default function StatsDashboard() {
       </div>
 
       {/* Top Proteins */}
-      <div className="rounded-3xl border border-[var(--border-color)] bg-white p-4 sm:p-6 md:p-8 shadow-[var(--shadow-soft)]">
+      <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-4 sm:p-6 md:p-8">
         <div className="mb-4 md:mb-6">
-          <h2 className="text-lg sm:text-xl font-semibold text-[var(--foreground)]">
+          <h2 className="text-lg sm:text-xl font-semibold text-white">
             Top Proteins by Paper Count
           </h2>
-          <p className="mt-1 text-xs sm:text-sm text-[var(--foreground-subtle)]">
+          <p className="mt-1 text-xs sm:text-sm text-slate-500">
             Click on a protein to search related papers
           </p>
         </div>
@@ -374,32 +367,31 @@ export default function StatsDashboard() {
                 onClick={() => handleProteinClick(protein.protein)}
                 onMouseEnter={() => setHoveredProtein(protein.protein)}
                 onMouseLeave={() => setHoveredProtein(null)}
-                className="group relative rounded-xl border border-[var(--border-color)] bg-[var(--background)] p-3 sm:p-4 transition-all hover:border-[var(--accent-primary)] hover:shadow-md cursor-pointer text-left"
+                className="group relative rounded-xl border border-white/10 bg-white/5 p-3 sm:p-4 transition-all hover:border-blue-500/50 hover:bg-blue-500/10 cursor-pointer text-left"
                 aria-label={`Search papers about ${protein.protein}`}
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-xs text-[var(--foreground-subtle)]">#{index + 1}</p>
-                    <p className="mt-1 text-base sm:text-lg font-bold text-[var(--accent-primary)]">
+                    <p className="text-xs text-slate-500">#{index + 1}</p>
+                    <p className="mt-1 text-base sm:text-lg font-bold text-blue-400">
                       {protein.protein}
                     </p>
                   </div>
-                  <span className="rounded-full bg-[var(--accent-soft)] px-2 py-1 text-xs font-semibold text-[var(--accent-primary)]">
+                  <span className="rounded-full bg-blue-500/20 px-2 py-1 text-xs font-semibold text-blue-400">
                     {protein.paper_count}
                   </span>
                 </div>
-                <p className="mt-2 text-xs text-[var(--foreground-muted)]">papers</p>
+                <p className="mt-2 text-xs text-slate-500">papers</p>
                 
-                {/* Tooltip */}
                 {isHovered && (
-                  <div className="absolute left-0 right-0 top-full mt-2 z-10 rounded-lg border border-blue-200 bg-white p-3 shadow-lg">
-                    <p className="text-xs font-semibold text-blue-900">
+                  <div className="absolute left-0 right-0 top-full mt-2 z-10 rounded-lg border border-blue-500/30 bg-[#0d1525] p-3 shadow-lg">
+                    <p className="text-xs font-semibold text-blue-300">
                       {protein.protein}
                     </p>
-                    <p className="mt-1 text-xs text-[var(--foreground-muted)]">
+                    <p className="mt-1 text-xs text-slate-400">
                       {protein.paper_count} papers in corpus
                     </p>
-                    <p className="mt-2 text-xs text-blue-600">
+                    <p className="mt-2 text-xs text-blue-400">
                       Click to search →
                     </p>
                   </div>
@@ -410,27 +402,28 @@ export default function StatsDashboard() {
         </div>
       </div>
 
+
       {/* Publication Year Histogram */}
-      <div className="rounded-3xl border border-[var(--border-color)] bg-white p-4 sm:p-6 md:p-8 shadow-[var(--shadow-soft)]">
-        <h2 className="mb-4 md:mb-6 text-lg sm:text-xl font-semibold text-[var(--foreground)]">
+      <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-4 sm:p-6 md:p-8">
+        <h2 className="mb-4 md:mb-6 text-lg sm:text-xl font-semibold text-white">
           Publication Year Distribution
         </h2>
         <div className="mb-4 md:mb-6 grid gap-3 sm:gap-4 grid-cols-3">
-          <div className="rounded-lg border border-[var(--border-color)] bg-[var(--background)] p-3 sm:p-4">
-            <p className="text-xs text-[var(--foreground-subtle)]">Earliest</p>
-            <p className="mt-1 text-xl sm:text-2xl font-bold text-[var(--foreground)]">
+          <div className="rounded-lg border border-white/10 bg-white/5 p-3 sm:p-4">
+            <p className="text-xs text-slate-500">Earliest</p>
+            <p className="mt-1 text-xl sm:text-2xl font-bold text-white">
               {stats.quality.year_range.earliest}
             </p>
           </div>
-          <div className="rounded-lg border border-[var(--border-color)] bg-[var(--background)] p-3 sm:p-4">
-            <p className="text-xs text-[var(--foreground-subtle)]">Median</p>
-            <p className="mt-1 text-xl sm:text-2xl font-bold text-[var(--foreground)]">
+          <div className="rounded-lg border border-white/10 bg-white/5 p-3 sm:p-4">
+            <p className="text-xs text-slate-500">Median</p>
+            <p className="mt-1 text-xl sm:text-2xl font-bold text-white">
               {stats.quality.year_range.median}
             </p>
           </div>
-          <div className="rounded-lg border border-[var(--border-color)] bg-[var(--background)] p-3 sm:p-4">
-            <p className="text-xs text-[var(--foreground-subtle)]">Latest</p>
-            <p className="mt-1 text-xl sm:text-2xl font-bold text-[var(--foreground)]">
+          <div className="rounded-lg border border-white/10 bg-white/5 p-3 sm:p-4">
+            <p className="text-xs text-slate-500">Latest</p>
+            <p className="mt-1 text-xl sm:text-2xl font-bold text-white">
               {stats.quality.year_range.latest}
             </p>
           </div>
@@ -452,27 +445,20 @@ export default function StatsDashboard() {
                 onMouseLeave={() => setHoveredDecade(null)}
               >
                 <div className="mb-1 flex items-center justify-between text-xs sm:text-sm">
-                  <span className="font-medium text-[var(--foreground)]">
-                    {decade.decade}
-                  </span>
-                  <span className="text-[var(--foreground-subtle)] text-xs">
-                    {decade.count} papers
-                  </span>
+                  <span className="font-medium text-white">{decade.decade}</span>
+                  <span className="text-slate-500 text-xs">{decade.count} papers</span>
                 </div>
-                <div className="h-5 sm:h-6 w-full overflow-hidden rounded-lg bg-gray-100 cursor-pointer transition-all hover:shadow-md">
+                <div className="h-5 sm:h-6 w-full overflow-hidden rounded-lg bg-white/5 cursor-pointer transition-all hover:shadow-md">
                   <div
-                    className="h-full rounded-lg bg-gradient-to-r from-green-500 to-green-600 transition-all duration-500 group-hover:from-green-600 group-hover:to-green-700"
+                    className="h-full rounded-lg bg-gradient-to-r from-green-500 to-green-600 transition-all duration-500 group-hover:from-green-400 group-hover:to-green-500"
                     style={{ width: `${widthPercentage}%` }}
                   />
                 </div>
                 
-                {/* Tooltip */}
                 {isHovered && (
-                  <div className="absolute left-0 right-0 top-full mt-2 z-10 rounded-lg border border-green-200 bg-white p-3 shadow-lg">
-                    <p className="text-xs font-semibold text-green-900">
-                      {decade.decade}
-                    </p>
-                    <p className="mt-1 text-xs text-[var(--foreground-muted)]">
+                  <div className="absolute left-0 right-0 top-full mt-2 z-10 rounded-lg border border-green-500/30 bg-[#0d1525] p-3 shadow-lg">
+                    <p className="text-xs font-semibold text-green-300">{decade.decade}</p>
+                    <p className="mt-1 text-xs text-slate-400">
                       {decade.count} papers ({decadePercentage}% of corpus)
                     </p>
                   </div>
@@ -484,61 +470,61 @@ export default function StatsDashboard() {
       </div>
 
       {/* Data Completeness */}
-      <div className="rounded-3xl border border-[var(--border-color)] bg-white p-4 sm:p-6 md:p-8 shadow-[var(--shadow-soft)]">
-        <h2 className="mb-4 md:mb-6 text-lg sm:text-xl font-semibold text-[var(--foreground)]">
+      <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-4 sm:p-6 md:p-8">
+        <h2 className="mb-4 md:mb-6 text-lg sm:text-xl font-semibold text-white">
           Data Completeness
         </h2>
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3">
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium text-[var(--foreground)]">PMCID</span>
-              <span className="text-sm font-bold text-[var(--accent-primary)]">
+              <span className="text-sm font-medium text-white">PMCID</span>
+              <span className="text-sm font-bold text-blue-400">
                 {stats.quality.completeness.pmcid.percentage}%
               </span>
             </div>
-            <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100">
+            <div className="h-3 w-full overflow-hidden rounded-full bg-white/10">
               <div
-                className="h-full rounded-full bg-[var(--accent-primary)]"
+                className="h-full rounded-full bg-blue-500"
                 style={{ width: `${stats.quality.completeness.pmcid.percentage}%` }}
               />
             </div>
-            <p className="mt-1 text-xs text-[var(--foreground-subtle)]">
+            <p className="mt-1 text-xs text-slate-500">
               {stats.quality.completeness.pmcid.count.toLocaleString()} papers
             </p>
           </div>
 
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium text-[var(--foreground)]">DOI</span>
-              <span className="text-sm font-bold text-purple-600">
+              <span className="text-sm font-medium text-white">DOI</span>
+              <span className="text-sm font-bold text-purple-400">
                 {stats.quality.completeness.doi.percentage}%
               </span>
             </div>
-            <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100">
+            <div className="h-3 w-full overflow-hidden rounded-full bg-white/10">
               <div
-                className="h-full rounded-full bg-purple-600"
+                className="h-full rounded-full bg-purple-500"
                 style={{ width: `${stats.quality.completeness.doi.percentage}%` }}
               />
             </div>
-            <p className="mt-1 text-xs text-[var(--foreground-subtle)]">
+            <p className="mt-1 text-xs text-slate-500">
               {stats.quality.completeness.doi.count.toLocaleString()} papers
             </p>
           </div>
 
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium text-[var(--foreground)]">Title</span>
-              <span className="text-sm font-bold text-green-600">
+              <span className="text-sm font-medium text-white">Title</span>
+              <span className="text-sm font-bold text-green-400">
                 {stats.quality.completeness.title.percentage}%
               </span>
             </div>
-            <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100">
+            <div className="h-3 w-full overflow-hidden rounded-full bg-white/10">
               <div
-                className="h-full rounded-full bg-green-600"
+                className="h-full rounded-full bg-green-500"
                 style={{ width: `${stats.quality.completeness.title.percentage}%` }}
               />
             </div>
-            <p className="mt-1 text-xs text-[var(--foreground-subtle)]">
+            <p className="mt-1 text-xs text-slate-500">
               {stats.quality.completeness.title.count.toLocaleString()} papers
             </p>
           </div>
@@ -549,7 +535,7 @@ export default function StatsDashboard() {
       <MolInstructionsStats />
 
       {/* Footer */}
-      <div className="rounded-lg border border-[var(--border-color)] bg-[var(--background)] px-4 py-3 text-center text-xs text-[var(--foreground-subtle)]">
+      <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-center text-xs text-slate-500">
         Statistics generated at {new Date(stats.generated_at).toLocaleString()}
       </div>
     </div>

@@ -12,33 +12,31 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteTitle = "Protein Atlas | West Coast Vectors";
+const siteTitle = "Aging Protein Research Platform";
 const siteDescription =
-  "Human-readable protein dossiers that connect sequence variation to structure, function, and clinical relevance.";
+  "AI-powered search across aging-related proteins and scientific literature. Explore 3D molecular structures and discover connections to aging theories.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://protein-seq-to-function.vercel.app"),
+  metadataBase: new URL("https://aging-protein-rag.vercel.app"),
   title: {
     default: siteTitle,
-    template: "%s | Protein Atlas",
+    template: "%s | Aging Proteins",
   },
   description: siteDescription,
   keywords: [
-    "protein",
-    "sequence to function",
+    "aging",
+    "proteins",
+    "longevity",
     "bioinformatics",
-    "West Coast Vectors",
+    "RAG",
     "molecular biology",
-    "structure function relationships",
+    "3D structure",
   ],
-  authors: [{ name: "West Coast Vectors" }],
-  creator: "West Coast Vectors",
-  publisher: "West Coast Vectors",
   openGraph: {
     title: siteTitle,
     description: siteDescription,
     url: "/",
-    siteName: "Protein Atlas",
+    siteName: "Aging Protein Research",
     locale: "en_US",
     type: "website",
   },

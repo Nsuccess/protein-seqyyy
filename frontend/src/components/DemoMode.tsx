@@ -239,7 +239,7 @@ export default function DemoMode() {
             Example Query
           </p>
           <p className="text-lg font-medium text-[var(--foreground)]">
-            "{currentExample.query}"
+            &quot;{currentExample.query}&quot;
           </p>
           
           {currentExample.filters && (
@@ -264,7 +264,7 @@ export default function DemoMode() {
         {/* Expected Highlights */}
         <div className="mb-6">
           <p className="text-sm font-semibold text-[var(--foreground)] mb-3">
-            What you'll discover:
+            What you will discover:
           </p>
           <div className="grid gap-2 sm:grid-cols-3">
             {currentExample.expectedHighlights.map((highlight, index) => (
