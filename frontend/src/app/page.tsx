@@ -468,7 +468,7 @@ export default function Home() {
           {/* Bottom bar */}
           <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-sm text-slate-500">
-              © 2025 AgingProteins.ai — Built with 💙 for AWS Hackathon
+              © 2025 AgingProteins.ai — Built with 💙 for AISOC Hackathon
             </p>
             <div className="flex items-center gap-4">
               <span className="px-3 py-1 text-xs bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20">
