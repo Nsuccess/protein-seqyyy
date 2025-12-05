@@ -4,7 +4,7 @@
 > 
 > A comprehensive AI-powered platform for exploring aging-related proteins, scientific literature, and longevity research using RAG (Retrieval-Augmented Generation) technology.
 
-🌐 **Live Demo**: [protein-seqyyy.vercel.app](https://protein-seqyyy.vercel.app)
+🌐 **Live Demo**: [protein-seqyyy-nil.vercel.app](https://protein-seqyyy-nil.vercel.app)
 
 ---
 
