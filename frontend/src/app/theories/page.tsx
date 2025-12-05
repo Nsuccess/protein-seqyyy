@@ -23,6 +23,20 @@ interface TheoryStats {
   top_theories: Array<{ name: string; count: number }>;
 }
 
+const HALLMARKS_OF_AGING = [
+  { name: 'Genomic Instability', description: 'DNA damage accumulation over time', proteins: ['TP53', 'BRCA1', 'ATM', 'PARP1'] },
+  { name: 'Telomere Attrition', description: 'Shortening of chromosome ends', proteins: ['TERT', 'TERC', 'POT1'] },
+  { name: 'Epigenetic Alterations', description: 'Changes in gene expression patterns', proteins: ['SIRT1', 'SIRT6', 'HDAC1'] },
+  { name: 'Loss of Proteostasis', description: 'Decline in protein quality control', proteins: ['HSP70', 'HSP90', 'HSPA1A'] },
+  { name: 'Mitochondrial Dysfunction', description: 'Impaired energy production', proteins: ['POLG', 'TFAM', 'SOD2'] },
+  { name: 'Cellular Senescence', description: 'Permanent cell cycle arrest', proteins: ['CDKN2A', 'CDKN1A', 'RB1'] },
+  { name: 'Stem Cell Exhaustion', description: 'Decline in regenerative capacity', proteins: ['SOX2', 'NANOG', 'KLF4'] },
+  { name: 'Altered Intercellular Communication', description: 'Disrupted signaling between cells', proteins: ['IGF1', 'GH1', 'FOXO3'] },
+  { name: 'Disabled Macroautophagy', description: 'Impaired cellular cleanup', proteins: ['ATG5', 'BECN1', 'MAP1LC3A'] },
+  { name: 'Chronic Inflammation', description: 'Persistent low-grade inflammation', proteins: ['IL6', 'TNF', 'NFKB1'] },
+  { name: 'Dysbiosis', description: 'Microbiome imbalance', proteins: ['TLR4', 'NOD2', 'MYD88'] },
+];
+
 export default function TheoriesPage() {
   const [theories, setTheories] = useState<Theory[]>([]);
   const [stats, setStats] = useState<TheoryStats | null>(null);
@@ -39,8 +53,14 @@ export default function TheoriesPage() {
   const fetchStats = async () => {
     try {
       const response = await fetch(apiEndpoint('/theories/stats'));
+      if (!response.ok) {
+        console.warn('Theory stats not available');
+        return;
+      }
       const data = await response.json();
-      setStats(data);
+      if (data && !data.detail) {
+        setStats(data);
+      }
     } catch (error) {
       console.error('Error fetching theory stats:', error);
     }
@@ -57,17 +77,30 @@ export default function TheoriesPage() {
       }
       
       const response = await fetch(url);
+      if (!response.ok) {
+        console.warn('Theories endpoint not available');
+        setTheories([]);
+        setTotal(0);
+        return;
+      }
       const data = await response.json();
       
-      if (query) {
-        setTheories(data.theories || []);
-        setTotal(data.total_results || 0);
+      if (data && !data.detail) {
+        if (query) {
+          setTheories(data.theories || []);
+          setTotal(data.total_results || 0);
+        } else {
+          setTheories(data.theories || []);
+          setTotal(data.total || 0);
+        }
       } else {
-        setTheories(data.theories || []);
-        setTotal(data.total || 0);
+        setTheories([]);
+        setTotal(0);
       }
     } catch (error) {
       console.error('Error fetching theories:', error);
+      setTheories([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -117,13 +150,42 @@ export default function TheoriesPage() {
           <p className="text-xs font-medium uppercase tracking-widest text-purple-400 mb-2">Research Database</p>
           <h1 className="text-3xl font-bold">Aging Theory Database</h1>
           <p className="mt-2 text-slate-400">
-            Explore {stats?.unique_theory_names || 823} unique aging theories extracted from {stats?.total_papers || 6153} research papers
+            Explore the 11 hallmarks of aging and their connections to proteins
           </p>
         </div>
       </header>
 
 
       <main className="mx-auto max-w-7xl px-6 py-8">
+        {/* 11 Hallmarks of Aging - Always show */}
+        <section className="rounded-2xl border border-white/10 bg-[#0d1525] p-6 mb-8">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <span>🧬</span> The 11 Hallmarks of Aging
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {HALLMARKS_OF_AGING.map((hallmark, index) => (
+              <div
+                key={index}
+                className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-purple-500/50 transition-all"
+              >
+                <h3 className="font-semibold text-white mb-1">{hallmark.name}</h3>
+                <p className="text-sm text-slate-400 mb-3">{hallmark.description}</p>
+                <div className="flex flex-wrap gap-1">
+                  {hallmark.proteins.map((protein) => (
+                    <Link
+                      key={protein}
+                      href={`/protein-detail/${protein}`}
+                      className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full hover:bg-purple-500/30 transition-colors"
+                    >
+                      {protein}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* Statistics Cards */}
         {stats && (
           <section className="grid gap-4 sm:grid-cols-4 mb-8">
