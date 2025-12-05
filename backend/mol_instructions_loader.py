@@ -1,8 +1,11 @@
 """
-Mol-Instructions Dataset Loader
+Mol-Instructions Dataset Loader (Aging-Filtered)
 
-This module loads and manages the Mol-Instructions dataset for few-shot learning
-in protein function prediction tasks.
+This module loads and manages an aging-relevant subset of the Mol-Instructions dataset
+for few-shot learning in protein function prediction tasks related to longevity research.
+
+The dataset has been filtered to include only examples containing aging-related keywords
+such as: telomere, senescence, DNA repair, oxidative stress, autophagy, apoptosis, etc.
 """
 
 import json
@@ -29,14 +32,29 @@ class MolInstructionsLoader:
     across multiple task types for few-shot learning.
     """
     
-    def __init__(self, data_dir: str = "data/raw/mol_instructions/Protein-oriented_Instructions"):
+    def __init__(self, data_dir: str = "data/mol_instructions_sample"):
         """
         Initialize the loader.
         
         Args:
-            data_dir: Path to the Mol-Instructions data directory
+            data_dir: Path to the Mol-Instructions data directory (aging-filtered sample)
         """
-        self.data_dir = Path(data_dir)
+        # Try multiple paths for flexibility (local dev vs Docker)
+        possible_paths = [
+            Path(data_dir),                                    # Direct path
+            Path(__file__).parent.parent / data_dir,           # Project root
+            Path(__file__).parent / data_dir,                  # Backend folder
+            Path("/app") / data_dir,                           # Docker absolute
+        ]
+        
+        self.data_dir = None
+        for p in possible_paths:
+            if p.exists():
+                self.data_dir = p
+                break
+        
+        if self.data_dir is None:
+            self.data_dir = Path(data_dir)  # Fallback, will fail gracefully later
         self.task_files = {
             "protein_function": "protein_function.json",
             "catalytic_activity": "catalytic_activity.json",
@@ -228,7 +246,7 @@ def get_global_registry() -> MolInstructionsRegistry:
     return _global_registry
 
 
-def initialize_mol_instructions(data_dir: str = "data/raw/mol_instructions/Protein-oriented_Instructions") -> MolInstructionsRegistry:
+def initialize_mol_instructions(data_dir: str = "data/mol_instructions_sample") -> MolInstructionsRegistry:
     """
     Initialize and load Mol-Instructions dataset into global registry.
     

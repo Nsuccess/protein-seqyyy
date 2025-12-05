@@ -128,8 +128,8 @@ theory_classifier = get_global_classifier()
 print("[STARTUP] Initializing Mol-Instructions dataset...")
 try:
     from mol_instructions_loader import initialize_mol_instructions
-    # Use path relative to project root (one level up from backend/)
-    mol_registry = initialize_mol_instructions("../data/raw/mol_instructions/Protein-oriented_Instructions")
+    # Try default path - loader will search multiple locations
+    mol_registry = initialize_mol_instructions()
     print(f"[STARTUP] Mol-Instructions loaded: {mol_registry.total_count} instructions")
 except FileNotFoundError:
     print("[STARTUP] Mol-Instructions data not found - few-shot learning will be unavailable")

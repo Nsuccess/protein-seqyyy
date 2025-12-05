@@ -23,6 +23,9 @@ RUN mkdir -p /app/data/raw
 # Copy only the small data file that's in git
 COPY data/raw/genage_human.csv /app/data/raw/genage_human.csv
 
+# Copy Mol-Instructions aging-filtered sample (~8MB, 5K aging-relevant examples)
+COPY data/mol_instructions_sample /app/data/mol_instructions_sample
+
 # Create empty theory file with proper structure (app expects dict with metadata and mapped_theories)
 RUN echo '{"metadata": {}, "mapped_theories": []}' > /app/data/stage1_5_llm_mapped.json
 

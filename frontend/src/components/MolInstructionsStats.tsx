@@ -86,11 +86,11 @@ export default function MolInstructionsStats() {
 
       {/* Total Count Card */}
       <div className="mb-6 rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 p-6 text-center">
-        <p className="text-sm font-semibold text-indigo-300 mb-2">Total Instructions Loaded</p>
+        <p className="text-sm font-semibold text-indigo-300 mb-2">Aging-Relevant Instructions</p>
         <p className="text-4xl font-bold text-white">
           {stats.total_instructions.toLocaleString()}
         </p>
-        <p className="text-xs text-indigo-400 mt-2">Protein-oriented instruction examples</p>
+        <p className="text-xs text-indigo-400 mt-2">Filtered for longevity research keywords</p>
       </div>
 
       {/* Task Distribution */}
@@ -121,9 +121,9 @@ export default function MolInstructionsStats() {
 
       {/* Info Footer */}
       <div className="mt-6 rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-4">
-        <p className="text-xs font-semibold text-indigo-300 mb-1">✨ Few-Shot Learning Enabled</p>
+        <p className="text-xs font-semibold text-indigo-300 mb-1">🧬 Aging-Filtered Dataset</p>
         <p className="text-xs text-indigo-400">
-          Use these examples to enhance protein function predictions with contextual learning.
+          Filtered for aging keywords: telomere, senescence, DNA repair, autophagy, p53, apoptosis, mitochondria, and more.
         </p>
       </div>
     </div>
