@@ -2,12 +2,13 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 env:
-  NEXT_PUBLIC_API_URL: https://protein-seqyyy-production.up.railway.app
+  NEXT_PUBLIC_API_URL_PROD: https://protein-seqyyy-production.up.railway.app
+  NEXT_PUBLIC_API_URL_STAGING: https://protein-seqyyy-staging.up.railway.app
 
 jobs:
   # Backend Tests & Lint
@@ -83,26 +84,56 @@ jobs:
         run: npx tsc --noEmit
         continue-on-error: true
       
-      - name: 🏗️ Build
+      - name: 🏗️ Build (Staging)
+        if: github.ref == 'refs/heads/develop'
         run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: ${{ env.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_API_URL: ${{ env.NEXT_PUBLIC_API_URL_STAGING }}
+      
+      - name: 🏗️ Build (Production)
+        if: github.ref == 'refs/heads/main'
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ env.NEXT_PUBLIC_API_URL_PROD }}
 
-  # Deploy notification
-  deploy:
-    name: 🚀 Deploy Status
+  # Deploy to Staging (develop branch)
+  deploy-staging:
+    name: 🧪 Deploy to Staging
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment: staging
+    
+    steps:
+      - name: 🚀 Staging Deployment
+        run: |
+          echo "✅ All tests passed on develop branch!"
+          echo ""
+          echo "🧪 Deploying to STAGING environment:"
+          echo "   - Backend: Railway Staging"
+          echo "   - Frontend: Vercel Preview"
+          echo ""
+          echo "📋 Next steps:"
+          echo "   1. Test staging environment"
+          echo "   2. Create PR from develop → main"
+          echo "   3. Merge to main for production deploy"
+
+  # Deploy to Production (main branch)
+  deploy-production:
+    name: 🚀 Deploy to Production
     needs: [backend, frontend]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
     
     steps:
-      - name: 🎉 Deployment Info
+      - name: 🎉 Production Deployment
         run: |
-          echo "✅ CI checks passed!"
+          echo "✅ All tests passed on main branch!"
           echo ""
-          echo "🚀 Auto-deploying to production:"
-          echo "   - Backend: Railway (https://protein-seqyyy-production.up.railway.app)"
-          echo "   - Frontend: Vercel (https://protein-seqyyy-nil.vercel.app)"
+          echo "🚀 Deploying to PRODUCTION:"
+          echo "   - Backend: https://protein-seqyyy-production.up.railway.app"
+          echo "   - Frontend: https://protein-seqyyy-nil.vercel.app"
           echo ""
           echo "📊 Database: NeonDB (PostgreSQL + pgvector)"
           echo "🤖 LLM: Groq (Llama 3.3 70B)"
