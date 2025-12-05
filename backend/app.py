@@ -38,9 +38,19 @@ settings = Settings()
 app = FastAPI(title="Felix Spike", version="0.0.1")
 
 # Configure CORS to allow frontend requests
+# CORS - allow frontend origins
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Local dev
+    "https://*.vercel.app",   # Vercel preview deployments
+    os.getenv("FRONTEND_URL", ""),  # Production frontend URL
+]
+# Filter out empty strings
+ALLOWED_ORIGINS = [o for o in ALLOWED_ORIGINS if o]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend URL
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://.*\.vercel\.app",  # Allow all Vercel subdomains
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
