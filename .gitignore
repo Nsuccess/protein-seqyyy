@@ -284,3 +284,6 @@ data/corpus/
 # Python virtual environments
 backend/venv/
 venv/
+
+# Excel data files
+data/*.xlsx
