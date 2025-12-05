@@ -174,13 +174,16 @@ class NeonQueryEngine:
     def _extract_citations(self, chunks: List[ChunkResult]) -> List[Dict[str, Any]]:
         """Extract and format citations from chunks."""
         citations_dict = {}
-        for chunk in chunks:
-            pmcid = chunk.pmcid
-            if pmcid and pmcid not in citations_dict:
-                citations_dict[pmcid] = {
-                    "pmcid": pmcid,
-                    "pmid": chunk.pmid,
-                    "title": chunk.title,
+        for i, chunk in enumerate(chunks):
+            # Use title as key if no PMCID (most papers don't have PMCID)
+            title = chunk.title or f"Source {i+1}"
+            key = chunk.pmcid if chunk.pmcid else title
+            
+            if key and key not in citations_dict:
+                citations_dict[key] = {
+                    "pmcid": chunk.pmcid or None,
+                    "pmid": chunk.pmid or None,
+                    "title": title,
                     "year": chunk.year,
                     "relevance_score": chunk.score
                 }
@@ -205,14 +208,15 @@ class NeonQueryEngine:
         
         context_parts = []
         for i, chunk in enumerate(chunks[:5], 1):
-            pmcid = chunk.pmcid or "Unknown"
-            context_parts.append(f"[{i}] (PMCID: {pmcid})\n{chunk.text}\n")
+            title = chunk.title[:80] + "..." if chunk.title and len(chunk.title) > 80 else (chunk.title or "Unknown")
+            context_parts.append(f"[{i}] ({title}, {chunk.year})\n{chunk.text}\n")
         context = "\n".join(context_parts)
         
         citation_refs = []
         for i, cite in enumerate(citations[:5], 1):
             title = cite["title"][:100] + "..." if len(cite["title"]) > 100 else cite["title"]
-            citation_refs.append(f"[{i}] {title} ({cite['year']}) - PMCID: {cite['pmcid']}")
+            year = cite.get("year", "n.d.")
+            citation_refs.append(f"[{i}] {title} ({year})")
         citations_text = "\n".join(citation_refs)
         
         system_prompt = """You are an expert in aging biology and gerontology. 
