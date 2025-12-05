@@ -11,7 +11,6 @@ from llama_index.core.node_parser import SentenceSplitter
 from openai import OpenAI
 import chromadb
 import numpy as np
-import faiss
 
 # Import GenAge loader, entity recognizer, theory classifier, stats tracker, query engine, UniProt client, statistics service, theory loader, and aging relevance analyzer
 from genage_loader import get_global_registry, GenAgeRegistry, GenAgeProtein
@@ -26,7 +25,10 @@ from theory_loader import get_global_registry as get_theory_registry, TheoryRegi
 
 
 class Settings(BaseSettings):
-    nebius_api_key: str
+    groq_api_key: str
+    nebius_api_key: str  # Keep Nebius for embeddings
+    neon_database_url: Optional[str] = None  # NeonDB connection string
+    vector_store_mode: str = "chroma"  # "chroma" (local) or "neon" (production)
     
     class Config:
         env_file = ".env"
@@ -45,27 +47,58 @@ app.add_middleware(
 )
 
 # ------- Public, non-secret config (hard-coded) -------
-PAPERS_DIR = "papers"
+PAPERS_DIR = "../data/corpus"
 CHROMA_PATH = "./chroma_db"            # local on-disk store
 CHROMA_COLLECTION = "longevity_s2f"    # name of the vector collection
 # Separate test DB (for debugging Chroma without touching the main DB)
 CHROMA_TEST_PATH = "./chroma_db_test"
 CHROMA_TEST_COLLECTION = "test_basic"
-# FAISS storage directory (index + metadata JSONL)
-FAISS_DIR = "./faiss_store"
-# Configure a single, global splitter. We do not enable embeddings here.
-# chunk_size ~800 tokens with ~120 overlap is a common default for scientific text.
-#SPLITTER = SentenceSplitter(chunk_size=800, chunk_overlap=120)
-# OpenAI-compatible base URL from Nebius Quickstart (documented).
-# We keep this constant in code (not secret).
-NEBIUS_BASE_URL = "https://api.studio.nebius.com/v1/"  # docs: /v1/chat/completions
-#NEBIUS_MODEL = "openai/gpt-oss-120b"  # inexpensive, open-source model suitable for tests
-NEBIUS_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-fast"  # 155 tok/s - fastest option!
-NEBIUS_EMBED_MODEL = "Qwen/Qwen3-Embedding-8B"
-#NEBIUS_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-fast"
+# ChromaDB storage directory for main index
+CHROMA_STORE_PATH = "./chroma_store"
+CHROMA_STORE_COLLECTION = "longevity_papers"
+# ------- API Configuration -------
+# Groq API for LLM (chat completions) - fast inference
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+GROQ_MODEL = "llama-3.3-70b-versatile"  # Best reasoning, 128k context
 
-os.environ["OPENAI_API_KEY"] = settings.nebius_api_key
-os.environ["OPENAI_BASE_URL"] = NEBIUS_BASE_URL
+# Nebius for embeddings (keep existing)
+NEBIUS_BASE_URL = "https://api.studio.nebius.com/v1/"
+NEBIUS_EMBED_MODEL = "Qwen/Qwen3-Embedding-8B"
+
+os.environ["OPENAI_API_KEY"] = settings.groq_api_key
+os.environ["OPENAI_BASE_URL"] = GROQ_BASE_URL
+
+
+def get_query_engine():
+    """
+    Factory function to get the appropriate query engine based on VECTOR_STORE_MODE.
+    
+    Returns:
+        ProteinQueryEngine (ChromaDB) or NeonQueryEngine (NeonDB/pgvector)
+    """
+    llm_client = OpenAI(
+        api_key=settings.groq_api_key,
+        base_url=GROQ_BASE_URL
+    )
+    embed_client = OpenAI(
+        api_key=settings.nebius_api_key,
+        base_url=NEBIUS_BASE_URL
+    )
+    
+    if settings.vector_store_mode == "neon" and settings.neon_database_url:
+        # Use NeonDB for production
+        from neon_query_engine import NeonQueryEngine
+        return NeonQueryEngine(
+            connection_string=settings.neon_database_url,
+            llm_client=llm_client,
+            embed_client=embed_client
+        )
+    else:
+        # Use ChromaDB for local development
+        return ProteinQueryEngine(
+            llm_client=llm_client,
+            embed_client=embed_client
+        )
 
 # Initialize GenAge registry, theory registry, entity recognizer, and theory classifier on startup
 print("[STARTUP] Loading GenAge protein registry...")
@@ -148,75 +181,117 @@ def nebius_embed_hello():
 
 
 
-@app.get("/nebius-hello")
-def nebius_hello():
+@app.get("/groq-hello")
+def groq_hello():
     """
-    Tiny test against Nebius Chat Completions.
+    Tiny test against Groq Chat Completions.
     - Reads ONLY the API key from .env (no other secrets).
     - Sends a very short prompt.
     - Prints raw response to the server terminal for inspection.
     - Returns only {"status": "ok"} to the client (no extra payload).
     """
-    api_key = settings.nebius_api_key
+    api_key = settings.groq_api_key
 
-    url = f"{NEBIUS_BASE_URL}chat/completions"
+    url = f"{GROQ_BASE_URL}/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
 
-    # Short, harmless test prompt (no internet access assumed).
+    # Short, harmless test prompt
     prompt = (
         "Return a JSON object with fields 'name', 'url', 'notes' for 3 public databases "
         "that provide free APIs for human proteins that are related to longevity. No markdown, JSON only."
     )
 
-    # Payload follows Nebius' OpenAI-compatible schema (messages[], model, etc.).
-    # Reference: Nebius Quickstart /v1/chat/completions. :contentReference[oaicite:1]{index=1}
     payload = {
-        "model": NEBIUS_MODEL,
+        "model": GROQ_MODEL,
         "messages": [
             {"role": "system", "content": "You are a concise scientific assistant."},
             {"role": "user", "content": prompt}
         ],
-        
         "max_tokens": 500,
         "temperature": 0.2,
         "response_format": {"type": "json_object"}
     }
 
-    print("[Nebius HELLO] POST", url, "model=", NEBIUS_MODEL)
+    print("[Groq HELLO] POST", url, "model=", GROQ_MODEL)
     with httpx.Client(timeout=60) as client:
         resp = client.post(url, json=payload, headers=headers)
 
-    print("[Nebius HELLO] HTTP:", resp.status_code)
+    print("[Groq HELLO] HTTP:", resp.status_code)
     try:
         data = resp.json()
-        print("[Nebius HELLO] JSON:", data)  # full raw JSON from Nebius
+        print("[Groq HELLO] JSON:", data)
         
-        # Extract and parse the JSON response from the model
         if "choices" in data and len(data["choices"]) > 0:
             msg = data["choices"][0]["message"]["content"]
-            print("[Nebius HELLO] Model response:", msg)
+            print("[Groq HELLO] Model response:", msg)
             
-            # Try to parse the JSON response from the model
-            import json
             try:
                 parsed_response = json.loads(msg)
-                print("[Nebius HELLO] Parsed JSON:", parsed_response)
+                print("[Groq HELLO] Parsed JSON:", parsed_response)
             except json.JSONDecodeError as e:
-                print("[Nebius HELLO] JSON parse error:", e)
+                print("[Groq HELLO] JSON parse error:", e)
                 
     except Exception:
-        print("[Nebius HELLO] TEXT:", resp.text[:1000])
+        print("[Groq HELLO] TEXT:", resp.text[:1000])
 
-    
     return {"status": "ok"}
 
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/vector-store/status")
+def get_vector_store_status():
+    """
+    Get current vector store configuration and status.
+    
+    Returns:
+        Vector store mode, connection status, and statistics
+    """
+    mode = settings.vector_store_mode
+    
+    if mode == "neon" and settings.neon_database_url:
+        try:
+            from neon_vector_store import NeonVectorStore
+            store = NeonVectorStore(connection_string=settings.neon_database_url)
+            stats = store.get_stats()
+            return {
+                "mode": "neon",
+                "status": "connected",
+                "database": "NeonDB (PostgreSQL + pgvector)",
+                "stats": stats
+            }
+        except Exception as e:
+            return {
+                "mode": "neon",
+                "status": "error",
+                "error": str(e)
+            }
+    else:
+        try:
+            client = chromadb.PersistentClient(path=CHROMA_STORE_PATH)
+            collection = client.get_collection(name=CHROMA_STORE_COLLECTION)
+            count = collection.count()
+            return {
+                "mode": "chroma",
+                "status": "connected",
+                "database": "ChromaDB (local SQLite)",
+                "stats": {
+                    "total_chunks": count,
+                    "path": CHROMA_STORE_PATH
+                }
+            }
+        except Exception as e:
+            return {
+                "mode": "chroma",
+                "status": "error",
+                "error": str(e)
+            }
 
 
 # ------- GenAge Protein Endpoints -------
@@ -740,13 +815,8 @@ def rag_query(
         }
     """
     try:
-        # Initialize query engine with OpenAI client
-        query_engine = ProteinQueryEngine(
-            openai_client=OpenAI(
-                api_key=settings.nebius_api_key,
-                base_url=NEBIUS_BASE_URL
-            )
-        )
+        # Get query engine (ChromaDB or NeonDB based on config)
+        query_engine = get_query_engine()
         
         # Execute query
         result = query_engine.query(
@@ -841,13 +911,8 @@ def rag_query_general(
         # Analyze query for aging relevance
         query_analysis = analyzer.analyze_query(query)
         
-        # Initialize query engine
-        query_engine = ProteinQueryEngine(
-            openai_client=OpenAI(
-                api_key=settings.nebius_api_key,
-                base_url=NEBIUS_BASE_URL
-            )
-        )
+        # Get query engine (ChromaDB or NeonDB based on config)
+        query_engine = get_query_engine()
         
         # Execute query without filters (general search)
         result = query_engine.query(
@@ -945,13 +1010,8 @@ def get_protein_papers(
         )
     
     try:
-        # Initialize query engine
-        query_engine = ProteinQueryEngine(
-            openai_client=OpenAI(
-                api_key=settings.nebius_api_key,
-                base_url=NEBIUS_BASE_URL
-            )
-        )
+        # Get query engine (ChromaDB or NeonDB based on config)
+        query_engine = get_query_engine()
         
         # Query for the protein
         query_text = f"{gene_symbol} protein function aging longevity"
@@ -1165,8 +1225,8 @@ def index_batch(limit: int = 200, offset: int = 0):
     - Load ALL JSON files from 'papers/' (no filtering), sliced by offset/limit.
     - Convert to LlamaIndex Documents.
     - Split into ~800-token chunks (with overlap).
-    - Create embeddings via Nebius (OpenAI-compatible).
-    - Persist vectors+metadata into a local FAISS index (index.faiss) + JSONL metadata (meta.jsonl) under FAISS_DIR.
+    - Create embeddings via Nebius AI.
+    - Persist vectors+metadata into ChromaDB under CHROMA_STORE_PATH.
     Prints detailed stats to the terminal; returns only {"status": "ok"}.
     """
 
@@ -1286,9 +1346,11 @@ def index_batch(limit: int = 200, offset: int = 0):
         print("[INDEX] No chunks created (unexpected if plain_text had content).")
         return {"status": "ok"}
 
-    # --- Embeddings directly via Nebius (OpenAI-compatible) and upsert to Chroma ---
-    print("[INDEX][DEBUG] Creating OpenAI client for Nebius...")
-    client = OpenAI(api_key=settings.nebius_api_key, base_url=NEBIUS_BASE_URL)
+    # --- Embeddings via Nebius and upsert to Chroma ---
+    print("[INDEX][DEBUG] Creating Nebius client for embeddings...")
+    embed_client = OpenAI(api_key=settings.nebius_api_key, base_url=NEBIUS_BASE_URL)
+    # Also create Groq client for any LLM calls
+    llm_client = OpenAI(api_key=settings.groq_api_key, base_url=GROQ_BASE_URL)
 
     # Prepare texts for embedding (one embedding per node)
     print("[INDEX][DEBUG] Preparing node IDs and texts...")
@@ -1322,18 +1384,13 @@ def index_batch(limit: int = 200, offset: int = 0):
     node_metas = [clean_metadata_for_chroma(n.metadata) for n in nodes]  # extract and clean metadata
     print(f"[INDEX][DEBUG] Cleaned {len(node_metas)} metadata entries")
 
-    # Request embeddings in a single batch from Nebius
+    # Request embeddings via Nebius
     try:
-        print(f"[INDEX] Embedding with model='{NEBIUS_EMBED_MODEL}' at base_url='{NEBIUS_BASE_URL}' ...")
+        print(f"[INDEX] Embedding with model='{NEBIUS_EMBED_MODEL}' via Nebius...")
         print(f"[INDEX][DEBUG] Sending {len(node_texts)} texts to Nebius for embedding...")
-        # ALT (Single-Batch, vorher):
-        # emb_resp = client.embeddings.create(model=NEBIUS_EMBED_MODEL, input=node_texts)
-        # print("[INDEX][DEBUG] Received response from Nebius, extracting embeddings...")
-        # embeddings = [d.embedding for d in emb_resp.data]  # extract embedding vectors
-        # print(f"[INDEX][DEBUG] Extracted {len(embeddings)} embeddings")
 
-        # --- simples Batching für Embeddings (keine Retries, kein Backoff) ---
-        BATCH_SIZE = 96  # z.B. 64–128; 96 ist ein guter Start
+        # Batch embeddings
+        BATCH_SIZE = 96
         embeddings = []
         total_batches = (len(node_texts) + BATCH_SIZE - 1) // BATCH_SIZE
         for start in range(0, len(node_texts), BATCH_SIZE):
@@ -1341,8 +1398,7 @@ def index_batch(limit: int = 200, offset: int = 0):
             batch_num = start // BATCH_SIZE + 1
             if batch_num == 1 or batch_num % 10 == 0 or batch_num == total_batches:
                 print(f"[INDEX][EMB] batch {batch_num}/{total_batches} (+{len(batch)} texts)")
-            resp = client.embeddings.create(model=NEBIUS_EMBED_MODEL, input=batch)
-            # Reihenfolge bleibt wie Input; wir hängen nur an
+            resp = embed_client.embeddings.create(model=NEBIUS_EMBED_MODEL, input=batch)
             embeddings.extend([item.embedding for item in resp.data])
 
         print(f"[INDEX][DEBUG] Total embeddings: {len(embeddings)}")
@@ -1360,149 +1416,82 @@ def index_batch(limit: int = 200, offset: int = 0):
         emb_dim = len(embeddings[0])
         print(f"[INDEX][DEBUG] Embedding dimensions: {emb_dim} (first vector)")
 
-    # === FAISS: Minimalpersistenz (ein Index + eine JSONL mit Metadaten), APPEND-ONLY ===
-    # Ensure target directory exists (no deletion between batches)
-    # Ensure the FAISS storage directory exists (append-only; do not delete between batches)
+    # === ChromaDB: Persistent vector store with metadata ===
+    # Ensure target directory exists
     try:
-        os.makedirs(FAISS_DIR, exist_ok=True)  # create the directory if missing; no error if it already exists
+        os.makedirs(CHROMA_STORE_PATH, exist_ok=True)
     except Exception as e:
-        print(f"[INDEX][FAISS dir error] {e}")
-        raise HTTPException(status_code=500, detail="Failed to create FAISS directory")
+        print(f"[INDEX][ChromaDB dir error] {e}")
+        raise HTTPException(status_code=500, detail="Failed to create ChromaDB directory")
 
-    # Convert embeddings to a contiguous float32 matrix that FAISS expects: shape [num_vectors, embedding_dim]
-    # FAISS operates on float32 arrays; this makes dtype and memory layout compatible and fast.
-    X = np.array(embeddings, dtype="float32")
-    if X.ndim != 2 or X.shape[0] == 0:
-        raise HTTPException(status_code=500, detail="No embeddings to index")
-    # L2-normalize each vector so that inner product (IP) behaves like cosine similarity (IP of unit vectors = cosine)
-    faiss.normalize_L2(X)
-
-    # Embedding dimensionality (number of features per vector). Must stay constant across all batches for the same index.
-    dim = int(X.shape[1])
-    # Build file paths:
-    # - faiss_path is the persisted index file; os.path.join safely constructs the path for the current OS.
-    #   The file may or may not exist yet; existence is handled below.
-    # - dim_path is a tiny helper file storing the embedding dimension for consistency checks across batches.
-    faiss_path = os.path.join(FAISS_DIR, "index.faiss")
-    dim_path = os.path.join(FAISS_DIR, "dim.txt")
-
-    # If an index exists, load and validate dimension; else create new
-    # Load existing index (resume) if it exists and its dimension matches; otherwise create a fresh IndexFlatIP.
-    # IndexFlatIP uses inner product; combined with L2 normalization this yields cosine-like retrieval.
-    if os.path.isfile(faiss_path):
-        index = faiss.read_index(faiss_path)
-        if int(index.d) != dim:
-            raise HTTPException(status_code=400, detail=f"FAISS dim mismatch: index has {int(index.d)}, new vectors have {dim}")
-        print(f"[INDEX][FAISS] Loaded existing index: {faiss_path} (ntotal={index.ntotal}, dim={int(index.d)})")
-    else:
-        index = faiss.IndexFlatIP(dim)
-        print(f"[INDEX][FAISS] Created new IndexFlatIP dim={dim}")
-
-    # Persist/verify dimension helper file
+    # Initialize ChromaDB client and get/create collection
     try:
-        if os.path.isfile(dim_path):
-            try:
-                # 'with' is a Python context manager: it opens the file and guarantees it will be closed automatically.
-                with open(dim_path, "r", encoding="utf-8") as g:
-                    prev_dim = int((g.read() or "").strip() or "0")
-                if prev_dim != dim:
-                    raise HTTPException(status_code=400, detail=f"FAISS dim mismatch: stored dim.txt={prev_dim}, new vectors have {dim}")
-            except ValueError:
-                print("[INDEX][FAISS dim warn] dim.txt is not an integer; rewriting")
-                with open(dim_path, "w", encoding="utf-8") as g:  # context manager ensures the file is closed properly
-                    g.write(str(dim))
-        else:
-            with open(dim_path, "w", encoding="utf-8") as g:  # first-time write of the embedding dimension
-                g.write(str(dim))
-    except HTTPException:
-        raise
+        chroma_client = chromadb.PersistentClient(path=CHROMA_STORE_PATH)
+        collection = chroma_client.get_or_create_collection(
+            name=CHROMA_STORE_COLLECTION,
+            metadata={"hnsw:space": "cosine"}  # Use cosine similarity
+        )
+        print(f"[INDEX][ChromaDB] Collection '{CHROMA_STORE_COLLECTION}' ready (current count: {collection.count()})")
     except Exception as e:
-        print(f"[INDEX][FAISS dim write warn] {e}")
+        print(f"[INDEX][ChromaDB init error] {e}")
+        raise HTTPException(status_code=500, detail="Failed to initialize ChromaDB")
 
-    # Append new vectors
-    index.add(X)
-    faiss.write_index(index, faiss_path)
-    print(f"[INDEX][FAISS] Saved index: {faiss_path} (ntotal={index.ntotal})")
+    # Add vectors to ChromaDB in batches (ChromaDB handles deduplication by ID)
+    CHROMA_BATCH_SIZE = 100
+    total_added = 0
+    for start in range(0, len(node_ids), CHROMA_BATCH_SIZE):
+        end = min(start + CHROMA_BATCH_SIZE, len(node_ids))
+        batch_ids = node_ids[start:end]
+        batch_texts = node_texts[start:end]
+        batch_metas = node_metas[start:end]
+        batch_embeds = embeddings[start:end]
+        
+        try:
+            collection.upsert(
+                ids=batch_ids,
+                documents=batch_texts,
+                metadatas=batch_metas,
+                embeddings=batch_embeds
+            )
+            total_added += len(batch_ids)
+        except Exception as e:
+            print(f"[INDEX][ChromaDB upsert error] batch {start}-{end}: {e}")
+            raise HTTPException(status_code=500, detail=f"ChromaDB upsert failed: {e}")
+    
+    print(f"[INDEX][ChromaDB] Added {total_added} vectors (total in collection: {collection.count()})")
+    print("[INDEX] Batch done (ChromaDB).")
 
-    # Append metadata aligned with vector order: each new JSONL line corresponds to a newly added vector
-    # JSONL (JSON Lines) = one JSON object per line; ideal for append-only writes and easy streaming reads
-    meta_path = os.path.join(FAISS_DIR, "meta.jsonl")  # target metadata file (append-only across batches)
-    try:
-        # 'a' = append mode; preserves previous content and adds new lines for the current batch
-        # 'f' is the opened writable file handle; the context manager ensures it is closed automatically
-        with open(meta_path, "a", encoding="utf-8") as f:
-            # zip iterates the three equal-length lists in lockstep: (node_id, node_text, node_meta) per vector
-            # Fields:
-            #   - id: the node identifier (string)
-            #   - text: the chunk text associated with the vector (string)
-            #   - meta: cleaned metadata dict for the node (dict of primitive/JSON-serializable values)
-            for _id, _txt, _meta in zip(node_ids, node_texts, node_metas):
-                # ensure_ascii=False preserves non-ASCII characters as UTF-8 instead of escaping
-                # the trailing "\n" ensures exactly one JSON object per line (JSONL format)
-                f.write(json.dumps({"id": _id, "text": _txt, "meta": _meta}, ensure_ascii=False) + "\n")
-        print(f"[INDEX][FAISS] Appended metadata JSONL: {meta_path} (+{len(node_ids)} lines)")
-    except Exception as e:
-        print(f"[INDEX][FAISS meta write error] {e}")
-        raise HTTPException(status_code=500, detail="Failed to write FAISS metadata JSONL")
-
-    print("[INDEX] Batch done (FAISS append).")
     # ----------------------------------------------------------------------
-    # SIMPLE FAISS QUERY (inline, for quick smoke-testing)
+    # SIMPLE ChromaDB QUERY (inline, for quick smoke-testing)
     # ----------------------------------------------------------------------
-    # Fixed test query string (you can replace this later or make it a parameter)
     QUERY = "APOE variant longevity lifespan"
-
-    # Number of top semantic matches to retrieve for the test query
-    query_top_k = 10  # you can change this to any integer you like
+    query_top_k = 10
 
     try:
-        # -- 1) Create a query embedding using the same model as indexing --
-        #    Reuse the Nebius OpenAI-compatible client created above.
+        # Create query embedding
         q_emb_resp = client.embeddings.create(model=NEBIUS_EMBED_MODEL, input=[QUERY])
+        query_embedding = q_emb_resp.data[0].embedding
 
-        # -- 2) Convert the returned Python list (embedding) into a float32 NumPy array --
-        #    FAISS expects float32; shape must be (1, dim) for a single query vector.
-        qvec = np.array(q_emb_resp.data[0].embedding, dtype="float32").reshape(1, -1)
+        # Query ChromaDB
+        results = collection.query(
+            query_embeddings=[query_embedding],
+            n_results=query_top_k,
+            include=["documents", "metadatas", "distances"]
+        )
 
-        # -- 3) L2-normalize the query vector --
-        #    Because we used IndexFlatIP and normalized stored vectors, we normalize the query as well
-        #    so that inner product ≈ cosine similarity.
-        faiss.normalize_L2(qvec)
-
-        # -- 4) Load the FAISS index that we just persisted (or appended to) in this batch --
-        faiss_path = os.path.join(FAISS_DIR, "index.faiss")
-        q_index = faiss.read_index(faiss_path)
-
-        # -- 5) Run the similarity search: returns scores (D) and indices (I) --
-        #    D: similarity scores (higher is more similar for IP/cosine)
-        #    I: integer indices into the vector store (aligned with meta.jsonl line order)
-        D, I = q_index.search(qvec, query_top_k)
-
-        # -- 6) Load metadata lines so we can map FAISS indices back to texts and paper info --
-        meta_path = os.path.join(FAISS_DIR, "meta.jsonl")
-        with open(meta_path, "r", encoding="utf-8") as f:
-            meta_lines = [json.loads(l) for l in f]
-
-        # -- 7) Build a lightweight result list of the top-k chunks --
-        #    We attach score and a small preview of the text for quick debugging.
-        #
-        #    Notes on FAISS outputs and variables used below:
-        #    - D: shape [1, top_k] similarity scores; higher means more similar for IP/cosine.
-        #    - I: shape [1, top_k] integer indices; each index points to a vector we added earlier.
-        #      The indices align 1:1 with lines in meta.jsonl because we wrote metadata in the
-        #      exact same order we appended vectors to the FAISS index.
-        #    - enumerate(zip(...), start=1) yields (rank, (score, idx)) per hit:
-        #      * rank: 1-based position in the ranked list (1 = best match).
-        #      * score: similarity for this hit (float).
-        #      * idx: integer position used to look up meta_lines[idx].
-        #    This loop materializes a compact list of hit dicts for easy printing/inspection.
+        # Build result list for inspection
         query_hits = []
-        for rank, (score, idx) in enumerate(zip(D[0].tolist(), I[0].tolist()), start=1):
-            if 0 <= idx < len(meta_lines):
-                # Map FAISS index -> metadata record; same order ensures stable alignment.
-                rec = meta_lines[idx]
+        if results and results['ids'] and results['ids'][0]:
+            for rank, chunk_id in enumerate(results['ids'][0], start=1):
+                idx = rank - 1
+                # Get metadata and document from ChromaDB results
+                meta = results['metadatas'][0][idx] if results['metadatas'] else {}
+                text = results['documents'][0][idx] if results['documents'] else ""
+                distance = results['distances'][0][idx] if results['distances'] else 0
+                score = 1.0 / (1.0 + distance)  # Convert distance to similarity
+                
                 # Optional: shorten the text for terminal readability
-                preview_text = rec.get("text", "")
+                preview_text = text
                 if len(preview_text) > 300:
                     preview_text = preview_text[:300] + "…"
 
@@ -1510,22 +1499,18 @@ def index_batch(limit: int = 200, offset: int = 0):
                 hit = {
                     "rank": rank,
                     "score": float(score),
-                    "id": rec.get("id"),
-                    "pmcid": (rec.get("meta") or {}).get("pmcid", ""),
-                    "doi": (rec.get("meta") or {}).get("doi", ""),
-                    "title": (rec.get("meta") or {}).get("title", ""),
-                    "year": (rec.get("meta") or {}).get("year", 0),
-                    "journal": (rec.get("meta") or {}).get("journal", ""),
-                    "source_url": (rec.get("meta") or {}).get("source_url", ""),
+                    "id": chunk_id,
+                    "pmcid": meta.get("pmcid", ""),
+                    "doi": meta.get("doi", ""),
+                    "title": meta.get("title", ""),
+                    "year": meta.get("year", 0),
+                    "journal": meta.get("journal", ""),
+                    "source_url": meta.get("source_url", ""),
                     "text_preview": preview_text,
+                    "full_text": text,  # Store full text for LLM extraction
                 }
                 query_hits.append(hit)
 
-        # -- 8) Print a human-readable preview to the server console for inspection --
-    # print(f"[QUERY] text='{QUERY}' | top_k={query_top_k}")
-    # for h in query_hits:
-    #     print(f"  #{h['rank']:02d} score={h['score']:.4f} | {h['pmcid']} | {h['doi']} | {h['title']}")
-    #     print(f"      {h['text_preview']}")
     except Exception as e:
         # If anything goes wrong during the query phase, keep indexing result intact and log the error only.
         print(f"[QUERY][error] {e}")
@@ -1599,24 +1584,14 @@ def index_batch(limit: int = 200, offset: int = 0):
         "Content-Type": "application/json",
     }
 
-    # Ensure 'meta_lines' is available (loaded earlier in the query phase). Reload if missing.
-    if "meta_lines" not in locals():
-        meta_path = os.path.join(FAISS_DIR, "meta.jsonl")
-        with open(meta_path, "r", encoding="utf-8") as f:
-            meta_lines = [json.loads(l) for l in f]
-
     # Collect extraction outputs here
     extractions = []
 
     # Iterate over each hit (chunk) and call the LLM once per chunk.
     for i, hit in enumerate(query_hits[:max_chunks_for_extraction], start=1):
-        # Find the full text by 'id' (unique node id created by LlamaIndex SentenceSplitter)
+        # Get full text from the hit (stored during query phase)
         node_id = hit.get("id")
-        full_text = ""
-        for rec in meta_lines:
-            if rec.get("id") == node_id:
-                full_text = rec.get("text", "")
-                break
+        full_text = hit.get("full_text", "")
 
         # Safety: if for some reason we didn't find it, fall back to preview.
         if not full_text:
@@ -1815,7 +1790,7 @@ def index_batch(limit: int = 200, offset: int = 0):
                 article_html = f"<h1>{article_title}</h1><pre>{acontent}</pre>"
 
         # Save HTML locally
-        out_dir = os.path.join(FAISS_DIR, "articles")
+        out_dir = os.path.join(CHROMA_STORE_PATH, "articles")
         os.makedirs(out_dir, exist_ok=True)  # create directory if missing
         safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", protein_name)
         out_path = os.path.join(out_dir, f"{safe_name}.html")
@@ -1853,7 +1828,7 @@ def index_genage_batch(
     - Extracts mentions of 307 GenAge aging-related proteins
     - Classifies papers by 12 aging hallmarks
     - Tracks detailed statistics
-    - Stores enriched metadata in FAISS
+    - Stores enriched metadata in ChromaDB
     
     Args:
         limit: Number of papers to process in this batch
@@ -2012,8 +1987,8 @@ def index_genage_batch(
             }
         }
     
-    # Continue with standard FAISS indexing (same as index_batch)
-    print(f"\n[GENAGE-INDEX] === Starting FAISS Indexing ===")
+    # Continue with ChromaDB indexing
+    print(f"\n[GENAGE-INDEX] === Starting ChromaDB Indexing ===")
     
     # Chunk documents
     splitter = SentenceSplitter(chunk_size=800, chunk_overlap=120)
@@ -2067,45 +2042,30 @@ def index_genage_batch(
     
     print(f"[GENAGE-INDEX] Created {len(embeddings)} embeddings")
     
-    # Store in FAISS
-    X = np.array(embeddings, dtype="float32")
-    faiss.normalize_L2(X)
-    dim = int(X.shape[1])
+    # Store in ChromaDB
+    os.makedirs(CHROMA_STORE_PATH, exist_ok=True)
     
-    faiss_path = os.path.join(FAISS_DIR, "index.faiss")
-    dim_path = os.path.join(FAISS_DIR, "dim.txt")
+    chroma_client = chromadb.PersistentClient(path=CHROMA_STORE_PATH)
+    collection = chroma_client.get_or_create_collection(
+        name=CHROMA_STORE_COLLECTION,
+        metadata={"hnsw:space": "cosine"}
+    )
+    print(f"[GENAGE-INDEX] ChromaDB collection ready (current count: {collection.count()})")
     
-    os.makedirs(FAISS_DIR, exist_ok=True)
+    # Add vectors in batches
+    CHROMA_BATCH_SIZE = 100
+    total_added = 0
+    for start in range(0, len(node_ids), CHROMA_BATCH_SIZE):
+        end = min(start + CHROMA_BATCH_SIZE, len(node_ids))
+        collection.upsert(
+            ids=node_ids[start:end],
+            documents=node_texts[start:end],
+            metadatas=node_metas[start:end],
+            embeddings=embeddings[start:end]
+        )
+        total_added += end - start
     
-    # Load or create index
-    if os.path.isfile(faiss_path):
-        index = faiss.read_index(faiss_path)
-        if int(index.d) != dim:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Dimension mismatch: index={int(index.d)}, new={dim}"
-            )
-        print(f"[GENAGE-INDEX] Loaded existing index (ntotal={index.ntotal})")
-    else:
-        index = faiss.IndexFlatIP(dim)
-        print(f"[GENAGE-INDEX] Created new index (dim={dim})")
-    
-    # Add vectors
-    index.add(X)
-    faiss.write_index(index, faiss_path)
-    print(f"[GENAGE-INDEX] Saved index (ntotal={index.ntotal})")
-    
-    # Save dimension
-    with open(dim_path, "w", encoding="utf-8") as f:
-        f.write(str(dim))
-    
-    # Append metadata
-    meta_path = os.path.join(FAISS_DIR, "meta.jsonl")
-    with open(meta_path, "a", encoding="utf-8") as f:
-        for _id, _txt, _meta in zip(node_ids, node_texts, node_metas):
-            f.write(json.dumps({"id": _id, "text": _txt, "meta": _meta}, ensure_ascii=False) + "\n")
-    
-    print(f"[GENAGE-INDEX] Appended {len(node_ids)} metadata entries")
+    print(f"[GENAGE-INDEX] Added {total_added} vectors (total in collection: {collection.count()})")
     
     # Prepare statistics for return and tracking
     batch_statistics = {
@@ -2134,7 +2094,7 @@ def index_genage_batch(
         "indexing": {
             "chunks_created": len(nodes),
             "embeddings_created": len(embeddings),
-            "faiss_total_vectors": index.ntotal
+            "chroma_total_vectors": collection.count()
         }
     }
     
@@ -2152,20 +2112,20 @@ def index_genage_batch(
     }
 
 
-@app.post("/index/faiss_batch")
-def index_faiss_batch(
+@app.post("/index/chroma_batch")
+def index_chroma_batch(
     limit: int = 200,
     offset: int = 0,
     use_scoring: bool = True,
     top_n: int = 1000,
     emb_batch_size: int = 96,
 ):
-# call e.g.: POST http://localhost:8000/index/faiss_batch?limit=1000&offset=0
+# call e.g.: POST http://localhost:8000/index/chroma_batch?limit=1000&offset=0
 
     """
     Indexing-only endpoint:
     - Loads JSON files from 'papers/' sliced by offset/limit
-    - Builds chunks, embeds via Nebius, appends to FAISS index and meta.jsonl
+    - Builds chunks, embeds via Nebius, stores in ChromaDB
     - Does NOT run query/extraction/article generation
     Returns only {"status": "ok"} (plus small counters).
     """
@@ -2357,76 +2317,54 @@ def index_faiss_batch(
         emb_dim = len(embeddings[0])
         print(f"[INDEX-ONLY] Embedding dimensions: {emb_dim} (first vector)")
 
-    # --- FAISS append-only ---
+    # --- ChromaDB storage ---
     try:
-        os.makedirs(FAISS_DIR, exist_ok=True)
+        os.makedirs(CHROMA_STORE_PATH, exist_ok=True)
     except Exception as e:
-        print(f"[INDEX-ONLY][FAISS dir error] {e}")
-        raise HTTPException(status_code=500, detail="Failed to create FAISS directory (index-only)")
-
-    X = np.array(embeddings, dtype="float32")
-    if X.ndim != 2 or X.shape[0] == 0:
-        raise HTTPException(status_code=500, detail="No embeddings to index (index-only)")
-    faiss.normalize_L2(X)
-
-    dim = int(X.shape[1])
-    faiss_path = os.path.join(FAISS_DIR, "index.faiss")
-    dim_path = os.path.join(FAISS_DIR, "dim.txt")
-
-    if os.path.isfile(faiss_path):
-        index = faiss.read_index(faiss_path)
-        if int(index.d) != dim:
-            raise HTTPException(status_code=400, detail=f"FAISS dim mismatch: index has {int(index.d)}, new vectors have {dim}")
-        print(f"[INDEX-ONLY][FAISS] Loaded existing index: {faiss_path} (ntotal={index.ntotal}, dim={int(index.d)})")
-    else:
-        index = faiss.IndexFlatIP(dim)
-        print(f"[INDEX-ONLY][FAISS] Created new IndexFlatIP dim={dim}")
+        print(f"[INDEX-ONLY][ChromaDB dir error] {e}")
+        raise HTTPException(status_code=500, detail="Failed to create ChromaDB directory (index-only)")
 
     try:
-        if os.path.isfile(dim_path):
-            try:
-                with open(dim_path, "r", encoding="utf-8") as g:
-                    prev_dim = int((g.read() or "").strip() or "0")
-                if prev_dim != dim:
-                    raise HTTPException(status_code=400, detail=f"FAISS dim mismatch: stored dim.txt={prev_dim}, new vectors have {dim}")
-            except ValueError:
-                print("[INDEX-ONLY][FAISS dim warn] dim.txt is not an integer; rewriting")
-                with open(dim_path, "w", encoding="utf-8") as g:
-                    g.write(str(dim))
-        else:
-            with open(dim_path, "w", encoding="utf-8") as g:
-                g.write(str(dim))
-    except HTTPException:
-        raise
+        chroma_client = chromadb.PersistentClient(path=CHROMA_STORE_PATH)
+        collection = chroma_client.get_or_create_collection(
+            name=CHROMA_STORE_COLLECTION,
+            metadata={"hnsw:space": "cosine"}
+        )
+        print(f"[INDEX-ONLY][ChromaDB] Collection ready (current count: {collection.count()})")
     except Exception as e:
-        print(f"[INDEX-ONLY][FAISS dim write warn] {e}")
+        print(f"[INDEX-ONLY][ChromaDB init error] {e}")
+        raise HTTPException(status_code=500, detail="Failed to initialize ChromaDB (index-only)")
 
-    index.add(X)
-    faiss.write_index(index, faiss_path)
-    print(f"[INDEX-ONLY][FAISS] Saved index: {faiss_path} (ntotal={index.ntotal})")
+    # Add vectors in batches
+    CHROMA_BATCH_SIZE = 100
+    total_added = 0
+    for start in range(0, len(node_ids), CHROMA_BATCH_SIZE):
+        end = min(start + CHROMA_BATCH_SIZE, len(node_ids))
+        try:
+            collection.upsert(
+                ids=node_ids[start:end],
+                documents=node_texts[start:end],
+                metadatas=node_metas[start:end],
+                embeddings=embeddings[start:end]
+            )
+            total_added += end - start
+        except Exception as e:
+            print(f"[INDEX-ONLY][ChromaDB upsert error] batch {start}-{end}: {e}")
+            raise HTTPException(status_code=500, detail=f"ChromaDB upsert failed: {e}")
 
-    meta_path = os.path.join(FAISS_DIR, "meta.jsonl")
-    try:
-        with open(meta_path, "a", encoding="utf-8") as f:
-            for _id, _txt, _meta in zip(node_ids, node_texts, node_metas):
-                f.write(json.dumps({"id": _id, "text": _txt, "meta": _meta}, ensure_ascii=False) + "\n")
-        print(f"[INDEX-ONLY][FAISS] Appended metadata JSONL: {meta_path} (+{len(node_ids)} lines)")
-    except Exception as e:
-        print(f"[INDEX-ONLY][FAISS meta write error] {e}")
-        raise HTTPException(status_code=500, detail="Failed to write FAISS metadata JSONL (index-only)")
-
-    print("[INDEX-ONLY] Batch done (FAISS append).")
-    return {"status": "ok", "files": len(files), "docs": len(docs), "chunks": len(node_ids)}
+    print(f"[INDEX-ONLY][ChromaDB] Added {total_added} vectors (total in collection: {collection.count()})")
+    print("[INDEX-ONLY] Batch done (ChromaDB).")
+    return {"status": "ok", "files": len(files), "docs": len(docs), "chunks": len(node_ids), "total_vectors": collection.count()}
 
 
-@app.post("/index/faiss_batch_without_scoring")
-def index_faiss_batch_without_scoring(limit: int = 200, offset: int = 0):
-# call e.g.: POST http://localhost:8000/index/faiss_batch?limit=1000&offset=0
+@app.post("/index/chroma_batch_without_scoring")
+def index_chroma_batch_without_scoring(limit: int = 200, offset: int = 0):
+# call e.g.: POST http://localhost:8000/index/chroma_batch_without_scoring?limit=1000&offset=0
 
     """
     Indexing-only endpoint:
     - Loads JSON files from 'papers/' sliced by offset/limit
-    - Builds chunks, embeds via Nebius, appends to FAISS index and meta.jsonl
+    - Builds chunks, embeds via Nebius, stores in ChromaDB
     - Does NOT run query/extraction/article generation
     Returns only {"status": "ok"} (plus small counters).
     """
@@ -2543,125 +2481,108 @@ def index_faiss_batch_without_scoring(limit: int = 200, offset: int = 0):
         emb_dim = len(embeddings[0])
         print(f"[INDEX-ONLY] Embedding dimensions: {emb_dim} (first vector)")
 
-    # --- FAISS append-only ---
+    # --- ChromaDB storage ---
     try:
-        os.makedirs(FAISS_DIR, exist_ok=True)
+        os.makedirs(CHROMA_STORE_PATH, exist_ok=True)
     except Exception as e:
-        print(f"[INDEX-ONLY][FAISS dir error] {e}")
-        raise HTTPException(status_code=500, detail="Failed to create FAISS directory (index-only)")
-
-    X = np.array(embeddings, dtype="float32")
-    if X.ndim != 2 or X.shape[0] == 0:
-        raise HTTPException(status_code=500, detail="No embeddings to index (index-only)")
-    faiss.normalize_L2(X)
-
-    dim = int(X.shape[1])
-    faiss_path = os.path.join(FAISS_DIR, "index.faiss")
-    dim_path = os.path.join(FAISS_DIR, "dim.txt")
-
-    if os.path.isfile(faiss_path):
-        index = faiss.read_index(faiss_path)
-        if int(index.d) != dim:
-            raise HTTPException(status_code=400, detail=f"FAISS dim mismatch: index has {int(index.d)}, new vectors have {dim}")
-        print(f"[INDEX-ONLY][FAISS] Loaded existing index: {faiss_path} (ntotal={index.ntotal}, dim={int(index.d)})")
-    else:
-        index = faiss.IndexFlatIP(dim)
-        print(f"[INDEX-ONLY][FAISS] Created new IndexFlatIP dim={dim}")
+        print(f"[INDEX-ONLY][ChromaDB dir error] {e}")
+        raise HTTPException(status_code=500, detail="Failed to create ChromaDB directory (index-only)")
 
     try:
-        if os.path.isfile(dim_path):
-            try:
-                with open(dim_path, "r", encoding="utf-8") as g:
-                    prev_dim = int((g.read() or "").strip() or "0")
-                if prev_dim != dim:
-                    raise HTTPException(status_code=400, detail=f"FAISS dim mismatch: stored dim.txt={prev_dim}, new vectors have {dim}")
-            except ValueError:
-                print("[INDEX-ONLY][FAISS dim warn] dim.txt is not an integer; rewriting")
-                with open(dim_path, "w", encoding="utf-8") as g:
-                    g.write(str(dim))
-        else:
-            with open(dim_path, "w", encoding="utf-8") as g:
-                g.write(str(dim))
-    except HTTPException:
-        raise
+        chroma_client = chromadb.PersistentClient(path=CHROMA_STORE_PATH)
+        collection = chroma_client.get_or_create_collection(
+            name=CHROMA_STORE_COLLECTION,
+            metadata={"hnsw:space": "cosine"}
+        )
+        print(f"[INDEX-ONLY][ChromaDB] Collection ready (current count: {collection.count()})")
     except Exception as e:
-        print(f"[INDEX-ONLY][FAISS dim write warn] {e}")
+        print(f"[INDEX-ONLY][ChromaDB init error] {e}")
+        raise HTTPException(status_code=500, detail="Failed to initialize ChromaDB (index-only)")
 
-    index.add(X)
-    faiss.write_index(index, faiss_path)
-    print(f"[INDEX-ONLY][FAISS] Saved index: {faiss_path} (ntotal={index.ntotal})")
+    # Add vectors in batches
+    CHROMA_BATCH_SIZE = 100
+    total_added = 0
+    for start in range(0, len(node_ids), CHROMA_BATCH_SIZE):
+        end = min(start + CHROMA_BATCH_SIZE, len(node_ids))
+        try:
+            collection.upsert(
+                ids=node_ids[start:end],
+                documents=node_texts[start:end],
+                metadatas=node_metas[start:end],
+                embeddings=embeddings[start:end]
+            )
+            total_added += end - start
+        except Exception as e:
+            print(f"[INDEX-ONLY][ChromaDB upsert error] batch {start}-{end}: {e}")
+            raise HTTPException(status_code=500, detail=f"ChromaDB upsert failed: {e}")
 
-    meta_path = os.path.join(FAISS_DIR, "meta.jsonl")
-    try:
-        with open(meta_path, "a", encoding="utf-8") as f:
-            for _id, _txt, _meta in zip(node_ids, node_texts, node_metas):
-                f.write(json.dumps({"id": _id, "text": _txt, "meta": _meta}, ensure_ascii=False) + "\n")
-        print(f"[INDEX-ONLY][FAISS] Appended metadata JSONL: {meta_path} (+{len(node_ids)} lines)")
-    except Exception as e:
-        print(f"[INDEX-ONLY][FAISS meta write error] {e}")
-        raise HTTPException(status_code=500, detail="Failed to write FAISS metadata JSONL (index-only)")
-
-    print("[INDEX-ONLY] Batch done (FAISS append).")
-    return {"status": "ok", "files": len(files), "docs": len(docs), "chunks": len(node_ids)}
+    print(f"[INDEX-ONLY][ChromaDB] Added {total_added} vectors (total in collection: {collection.count()})")
+    print("[INDEX-ONLY] Batch done (ChromaDB).")
+    return {"status": "ok", "files": len(files), "docs": len(docs), "chunks": len(node_ids), "total_vectors": collection.count()}
 
 
 @app.post("/article/generate")
 def article_generate(query: Optional[str] = None, top_k: int = 300, protein_name: str = "APOE"):
     """
     Article-only endpoint:
-    - Loads existing FAISS index + meta.jsonl
+    - Loads existing ChromaDB collection
     - Runs semantic query, per-chunk extractions (LLM), and article generation (LLM)
-    - Saves HTML into FAISS_DIR/articles and returns {"status": "ok"}
+    - Saves HTML into CHROMA_STORE_PATH/articles and returns {"status": "ok"}
     """
 
     # Prepare Nebius client
     client = OpenAI(api_key=settings.nebius_api_key, base_url=NEBIUS_BASE_URL)
 
     # Prepare query
-    #QUERY = query or "APOE variant longevity lifespan"
     QUERY = query or "APOE polymorphisms affecting human lifespan or aging, not disease-specific"
     query_top_k = int(top_k)
     print(f"[ARTICLE] START article_generate protein={protein_name!r} top_k={query_top_k} query={QUERY!r}")
 
     try:
-        print(f"[ARTICLE][query] Starting FAISS query (top_k={query_top_k})...")
+        print(f"[ARTICLE][query] Starting ChromaDB query (top_k={query_top_k})...")
         q_emb_resp = client.embeddings.create(model=NEBIUS_EMBED_MODEL, input=[QUERY])
-        qvec = np.array(q_emb_resp.data[0].embedding, dtype="float32").reshape(1, -1)
-        faiss.normalize_L2(qvec)
+        query_embedding = q_emb_resp.data[0].embedding
 
-        faiss_path = os.path.join(FAISS_DIR, "index.faiss")
-        q_index = faiss.read_index(faiss_path)
-
-        D, I = q_index.search(qvec, query_top_k)
-
-        meta_path = os.path.join(FAISS_DIR, "meta.jsonl")
-        with open(meta_path, "r", encoding="utf-8") as f:
-            meta_lines = [json.loads(l) for l in f]
+        # Query ChromaDB
+        chroma_client = chromadb.PersistentClient(path=CHROMA_STORE_PATH)
+        collection = chroma_client.get_collection(name=CHROMA_STORE_COLLECTION)
+        
+        results = collection.query(
+            query_embeddings=[query_embedding],
+            n_results=query_top_k,
+            include=["documents", "metadatas", "distances"]
+        )
 
         query_hits = []
-        for rank, (score, idx) in enumerate(zip(D[0].tolist(), I[0].tolist()), start=1):
-            if 0 <= idx < len(meta_lines):
-                rec = meta_lines[idx]
-                preview_text = rec.get("text", "")
+        if results and results['ids'] and results['ids'][0]:
+            for rank, chunk_id in enumerate(results['ids'][0], start=1):
+                idx = rank - 1
+                meta = results['metadatas'][0][idx] if results['metadatas'] else {}
+                text = results['documents'][0][idx] if results['documents'] else ""
+                distance = results['distances'][0][idx] if results['distances'] else 0
+                score = 1.0 / (1.0 + distance)  # Convert distance to similarity
+                
+                preview_text = text
                 if len(preview_text) > 300:
                     preview_text = preview_text[:300] + "…"
                 hit = {
                     "rank": rank,
                     "score": float(score),
-                    "id": rec.get("id"),
-                    "pmcid": (rec.get("meta") or {}).get("pmcid", ""),
-                    "doi": (rec.get("meta") or {}).get("doi", ""),
-                    "title": (rec.get("meta") or {}).get("title", ""),
-                    "year": (rec.get("meta") or {}).get("year", 0),
-                    "journal": (rec.get("meta") or {}).get("journal", ""),
-                    "source_url": (rec.get("meta") or {}).get("source_url", ""),
+                    "id": chunk_id,
+                    "pmcid": meta.get("pmcid", ""),
+                    "doi": meta.get("doi", ""),
+                    "title": meta.get("title", ""),
+                    "year": meta.get("year", 0),
+                    "journal": meta.get("journal", ""),
+                    "source_url": meta.get("source_url", ""),
                     "text_preview": preview_text,
+                    "full_text": text,
                 }
                 query_hits.append(hit)
         print(f"[ARTICLE][query] hits={len(query_hits)} (requested top_k={query_top_k})")
     except Exception as e:
         print(f"[ARTICLE][query error] {e}")
-        raise HTTPException(status_code=500, detail="FAISS query failed (article)")
+        raise HTTPException(status_code=500, detail="ChromaDB query failed (article)")
 
     # Extraction LLM setup (schema and prompts)
     extraction_schema = {
@@ -2707,13 +2628,8 @@ def article_generate(query: Optional[str] = None, top_k: int = 300, protein_name
         "Content-Type": "application/json",
     }
 
-    # Ensure meta_lines is loaded (from above during query mapping)
-    meta_path = os.path.join(FAISS_DIR, "meta.jsonl")
-    with open(meta_path, "r", encoding="utf-8") as f:
-        meta_lines = [json.loads(l) for l in f]
-
     extractions = []
-    # NEW: Full-document extraction with PMCID-level deduplication
+    # Full-document extraction with PMCID-level deduplication
     # We iterate over hits (chunks) but perform at most one extraction per PMCID.
     pmcid_to_text = load_pmcid_to_text(PAPERS_DIR)
     seen_pmcids = set()
@@ -2728,15 +2644,9 @@ def article_generate(query: Optional[str] = None, top_k: int = 300, protein_name
         # Prefer full paper text from harvested JSONs
         full_text = pmcid_to_text.get(pmcid, "")
 
-        # Fallbacks: if no PMCID or no plain text, fall back to the chunk text
+        # Fallbacks: if no PMCID or no plain text, fall back to the chunk text from ChromaDB
         if not full_text:
-            node_id = hit.get("id")
-            for rec in meta_lines:
-                if rec.get("id") == node_id:
-                    full_text = rec.get("text", "")
-                    break
-            if not full_text:
-                full_text = hit.get("text_preview", "")
+            full_text = hit.get("full_text", "") or hit.get("text_preview", "")
 
         if pmcid:
             seen_pmcids.add(pmcid)
@@ -2892,7 +2802,7 @@ def article_generate(query: Optional[str] = None, top_k: int = 300, protein_name
             except json.JSONDecodeError:
                 article_html = f"<h1>{article_title}</h1><pre>{acontent}</pre>"
 
-        out_dir = os.path.join(FAISS_DIR, "articles")
+        out_dir = os.path.join(CHROMA_STORE_PATH, "articles")
         os.makedirs(out_dir, exist_ok=True)
         safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", protein_name)
         out_path = os.path.join(out_dir, f"{safe_name}.html")
@@ -2913,9 +2823,9 @@ def article_generate(query: Optional[str] = None, top_k: int = 300, protein_name
 def article_generate_from_chunks(query: Optional[str] = None, top_k: int = 100, protein_name: str = "APOE"):
     """
     Article-only endpoint:
-    - Loads existing FAISS index + meta.jsonl
+    - Loads existing ChromaDB collection
     - Runs semantic query, per-chunk extractions (LLM), and article generation (LLM)
-    - Saves HTML into FAISS_DIR/articles and returns {"status": "ok"}
+    - Saves HTML into CHROMA_STORE_PATH/articles and returns {"status": "ok"}
     """
 
     # Prepare Nebius client
@@ -2927,41 +2837,47 @@ def article_generate_from_chunks(query: Optional[str] = None, top_k: int = 100, 
 
     try:
         q_emb_resp = client.embeddings.create(model=NEBIUS_EMBED_MODEL, input=[QUERY])
-        qvec = np.array(q_emb_resp.data[0].embedding, dtype="float32").reshape(1, -1)
-        faiss.normalize_L2(qvec)
+        query_embedding = q_emb_resp.data[0].embedding
 
-        faiss_path = os.path.join(FAISS_DIR, "index.faiss")
-        q_index = faiss.read_index(faiss_path)
-
-        D, I = q_index.search(qvec, query_top_k)
-
-        meta_path = os.path.join(FAISS_DIR, "meta.jsonl")
-        with open(meta_path, "r", encoding="utf-8") as f:
-            meta_lines = [json.loads(l) for l in f]
+        # Query ChromaDB
+        chroma_client = chromadb.PersistentClient(path=CHROMA_STORE_PATH)
+        collection = chroma_client.get_collection(name=CHROMA_STORE_COLLECTION)
+        
+        results = collection.query(
+            query_embeddings=[query_embedding],
+            n_results=query_top_k,
+            include=["documents", "metadatas", "distances"]
+        )
 
         query_hits = []
-        for rank, (score, idx) in enumerate(zip(D[0].tolist(), I[0].tolist()), start=1):
-            if 0 <= idx < len(meta_lines):
-                rec = meta_lines[idx]
-                preview_text = rec.get("text", "")
+        if results and results['ids'] and results['ids'][0]:
+            for rank, chunk_id in enumerate(results['ids'][0], start=1):
+                idx = rank - 1
+                meta = results['metadatas'][0][idx] if results['metadatas'] else {}
+                text = results['documents'][0][idx] if results['documents'] else ""
+                distance = results['distances'][0][idx] if results['distances'] else 0
+                score = 1.0 / (1.0 + distance)
+                
+                preview_text = text
                 if len(preview_text) > 300:
                     preview_text = preview_text[:300] + "…"
                 hit = {
                     "rank": rank,
                     "score": float(score),
-                    "id": rec.get("id"),
-                    "pmcid": (rec.get("meta") or {}).get("pmcid", ""),
-                    "doi": (rec.get("meta") or {}).get("doi", ""),
-                    "title": (rec.get("meta") or {}).get("title", ""),
-                    "year": (rec.get("meta") or {}).get("year", 0),
-                    "journal": (rec.get("meta") or {}).get("journal", ""),
-                    "source_url": (rec.get("meta") or {}).get("source_url", ""),
+                    "id": chunk_id,
+                    "pmcid": meta.get("pmcid", ""),
+                    "doi": meta.get("doi", ""),
+                    "title": meta.get("title", ""),
+                    "year": meta.get("year", 0),
+                    "journal": meta.get("journal", ""),
+                    "source_url": meta.get("source_url", ""),
                     "text_preview": preview_text,
+                    "full_text": text,
                 }
                 query_hits.append(hit)
     except Exception as e:
         print(f"[ARTICLE][query error] {e}")
-        raise HTTPException(status_code=500, detail="FAISS query failed (article)")
+        raise HTTPException(status_code=500, detail="ChromaDB query failed (article)")
 
     # Extraction LLM setup (schema and prompts)
     extraction_schema = {
@@ -3007,22 +2923,11 @@ def article_generate_from_chunks(query: Optional[str] = None, top_k: int = 100, 
         "Content-Type": "application/json",
     }
 
-    # Ensure meta_lines is loaded (from above during query mapping)
-    meta_path = os.path.join(FAISS_DIR, "meta.jsonl")
-    with open(meta_path, "r", encoding="utf-8") as f:
-        meta_lines = [json.loads(l) for l in f]
-
     extractions = []
     max_chunks_for_extraction = len(query_hits)
     for i, hit in enumerate(query_hits[:max_chunks_for_extraction], start=1):
-        node_id = hit.get("id")
-        full_text = ""
-        for rec in meta_lines:
-            if rec.get("id") == node_id:
-                full_text = rec.get("text", "")
-                break
-        if not full_text:
-            full_text = hit.get("text_preview", "")
+        # Get full text from the hit (stored during query phase)
+        full_text = hit.get("full_text", "") or hit.get("text_preview", "")
 
         user_content = USER_INSTRUCTION_PREFIX + full_text + USER_INSTRUCTION_SUFFIX
         payload = {
@@ -3171,7 +3076,7 @@ def article_generate_from_chunks(query: Optional[str] = None, top_k: int = 100, 
             except json.JSONDecodeError:
                 article_html = f"<h1>{article_title}</h1><pre>{acontent}</pre>"
 
-        out_dir = os.path.join(FAISS_DIR, "articles")
+        out_dir = os.path.join(CHROMA_STORE_PATH, "articles")
         os.makedirs(out_dir, exist_ok=True)
         safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", protein_name)
         out_path = os.path.join(out_dir, f"{safe_name}.html")
@@ -3193,7 +3098,7 @@ def article_generate_from_chunks(query: Optional[str] = None, top_k: int = 100, 
 def index_run_all(batch_size: int = 1000, protein_name: str = "APOE", query: Optional[str] = None, top_k: int = 10):
     """
     Orchestrator:
-    - Iterates papers/ in batches, calling /index/faiss_batch until all are indexed
+    - Iterates papers/ in batches, calling /index/chroma_batch until all are indexed
     - Then calls /article/generate once to produce the final article from the full index
     """
 
@@ -3210,7 +3115,7 @@ def index_run_all(batch_size: int = 1000, protein_name: str = "APOE", query: Opt
         limit = min(int(batch_size), total - offset)
         print(f"[RUN-ALL] Index batch offset={offset} limit={limit}")
         try:
-            index_faiss_batch(limit=limit, offset=offset)
+            index_chroma_batch(limit=limit, offset=offset)
             processed += limit
         except HTTPException as e:
             print(f"[RUN-ALL][index error] {e.detail}")

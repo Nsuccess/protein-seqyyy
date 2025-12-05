@@ -50,7 +50,7 @@ def test_theory_integration():
     top_3 = classifier.classify(sample_paper_text, top_k=3)
     print(f"   {top_3}")
     
-    print("\n4. Test metadata format for FAISS:")
+    print("\n4. Test metadata format for ChromaDB:")
     metadata = {
         "pmcid": "PMC9876543",
         "doi": "10.1234/aging.2024",

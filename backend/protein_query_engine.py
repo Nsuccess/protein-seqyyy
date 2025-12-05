@@ -1,12 +1,12 @@
 """
 Protein-aware Query Engine for RAG with metadata filtering.
 
-This module provides a query engine that can filter FAISS results by
+This module provides a query engine that can filter ChromaDB results by
 GenAge proteins and aging theories, and synthesize responses with citations.
 """
 
 import json
-import faiss
+import chromadb
 import numpy as np
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
@@ -85,80 +85,64 @@ class ProteinQueryEngine:
     Query engine with protein and theory filtering for RAG.
     
     Features:
-    - FAISS similarity search
+    - ChromaDB similarity search
     - Metadata filtering by proteins and theories
-    - LLM-based response synthesis
+    - LLM-based response synthesis (Groq)
+    - Embeddings via Nebius AI
     - Citation extraction and formatting
     - Confidence scoring
     """
     
     def __init__(
         self,
-        faiss_index_path: str = "backend/faiss_store/index.faiss",
-        metadata_path: str = "backend/faiss_store/meta.jsonl",
+        chroma_path: str = "backend/chroma_store",
+        collection_name: str = "longevity_papers",
         embed_model: str = "Qwen/Qwen3-Embedding-8B",
-        llm_model: str = "Qwen/Qwen3-30B-A3B-Instruct-2507",
-        openai_client: Optional[OpenAI] = None
+        llm_model: str = "llama-3.3-70b-versatile",
+        llm_client: Optional[OpenAI] = None,
+        embed_client: Optional[OpenAI] = None
     ):
         """
         Initialize query engine.
         
         Args:
-            faiss_index_path: Path to FAISS index file
-            metadata_path: Path to metadata JSONL file
-            embed_model: Embedding model name
-            llm_model: LLM model name for synthesis
-            openai_client: Optional OpenAI client (will create if not provided)
+            chroma_path: Path to ChromaDB storage directory
+            collection_name: Name of the ChromaDB collection
+            embed_model: Embedding model name (Nebius)
+            llm_model: LLM model name for synthesis (Groq)
+            llm_client: OpenAI-compatible client for LLM (Groq)
+            embed_client: OpenAI-compatible client for embeddings (Nebius)
         """
         # Handle paths relative to project root
-        self.faiss_index_path = Path(faiss_index_path)
-        if not self.faiss_index_path.exists():
-            self.faiss_index_path = Path(__file__).parent.parent / faiss_index_path
+        self.chroma_path = Path(chroma_path)
+        if not self.chroma_path.exists():
+            self.chroma_path = Path(__file__).parent.parent / chroma_path
         
-        self.metadata_path = Path(metadata_path)
-        if not self.metadata_path.exists():
-            self.metadata_path = Path(__file__).parent.parent / metadata_path
-        
+        self.collection_name = collection_name
         self.embed_model = embed_model
         self.llm_model = llm_model
-        self.client = openai_client
+        self.llm_client = llm_client
+        self.embed_client = embed_client
         
-        # Load FAISS index
-        if not self.faiss_index_path.exists():
-            raise FileNotFoundError(f"FAISS index not found: {faiss_index_path} or {self.faiss_index_path}")
+        # Initialize ChromaDB client and collection
+        if not self.chroma_path.exists():
+            raise FileNotFoundError(f"ChromaDB store not found: {chroma_path} or {self.chroma_path}")
         
-        self.index = faiss.read_index(str(self.faiss_index_path))
-        print(f"[QueryEngine] Loaded FAISS index: {self.index.ntotal} vectors")
-        
-        # Load metadata
-        self.metadata = self._load_metadata()
-        print(f"[QueryEngine] Loaded {len(self.metadata)} metadata entries")
+        self.chroma_client = chromadb.PersistentClient(path=str(self.chroma_path))
+        self.collection = self.chroma_client.get_collection(name=collection_name)
+        print(f"[QueryEngine] Loaded ChromaDB collection: {self.collection.count()} vectors")
     
-    def _load_metadata(self) -> List[Dict[str, Any]]:
-        """Load metadata from JSONL file."""
-        if not self.metadata_path.exists():
-            raise FileNotFoundError(f"Metadata file not found: {self.metadata_path}")
+    def _create_query_embedding(self, query: str) -> List[float]:
+        """Create embedding for query text using Nebius."""
+        if self.embed_client is None:
+            raise ValueError("Embedding client not initialized")
         
-        metadata = []
-        with open(self.metadata_path, "r", encoding="utf-8") as f:
-            for line in f:
-                if line.strip():
-                    metadata.append(json.loads(line))
-        return metadata
-    
-    def _create_query_embedding(self, query: str) -> np.ndarray:
-        """Create embedding for query text."""
-        if self.client is None:
-            raise ValueError("OpenAI client not initialized")
-        
-        response = self.client.embeddings.create(
+        response = self.embed_client.embeddings.create(
             model=self.embed_model,
             input=[query]
         )
         
-        embedding = np.array(response.data[0].embedding, dtype="float32").reshape(1, -1)
-        faiss.normalize_L2(embedding)
-        return embedding
+        return response.data[0].embedding
     
     def _filter_chunks(
         self,
@@ -224,20 +208,32 @@ class ProteinQueryEngine:
         # Create query embedding
         query_embedding = self._create_query_embedding(query_text)
         
-        # Search FAISS (retrieve more than top_k to account for filtering)
+        # Search ChromaDB (retrieve more than top_k to account for filtering)
         search_k = top_k * 5 if (protein_filter or theory_filters) else top_k
-        scores, indices = self.index.search(query_embedding, search_k)
         
-        # Build chunk results
+        results = self.collection.query(
+            query_embeddings=[query_embedding],
+            n_results=search_k,
+            include=["documents", "metadatas", "distances"]
+        )
+        
+        # Build chunk results (ChromaDB returns distance, convert to similarity score)
         chunks = []
-        for score, idx in zip(scores[0], indices[0]):
-            if idx < len(self.metadata):
-                meta_entry = self.metadata[idx]
+        if results and results['ids'] and results['ids'][0]:
+            for i, chunk_id in enumerate(results['ids'][0]):
+                # ChromaDB uses L2 distance by default, convert to similarity
+                # Lower distance = more similar, so we use 1/(1+distance) for similarity
+                distance = results['distances'][0][i] if results['distances'] else 0
+                score = 1.0 / (1.0 + distance)  # Convert distance to similarity score
+                
+                text = results['documents'][0][i] if results['documents'] else ""
+                metadata = results['metadatas'][0][i] if results['metadatas'] else {}
+                
                 chunks.append(ChunkResult(
-                    chunk_id=meta_entry.get("id", ""),
-                    text=meta_entry.get("text", ""),
-                    score=float(score),
-                    metadata=meta_entry.get("meta", {})
+                    chunk_id=chunk_id,
+                    text=text,
+                    score=score,
+                    metadata=metadata
                 ))
         
         # Apply filters
@@ -343,7 +339,7 @@ class ProteinQueryEngine:
         citations: List[Dict[str, Any]]
     ) -> str:
         """
-        Synthesize answer using LLM with retrieved chunks.
+        Synthesize answer using Groq LLM with retrieved chunks.
         
         Args:
             query: User query
@@ -353,7 +349,7 @@ class ProteinQueryEngine:
         Returns:
             Synthesized answer with citations
         """
-        if self.client is None:
+        if self.llm_client is None:
             return "LLM client not initialized"
         
         # Build context from chunks
@@ -394,7 +390,7 @@ Cite sources using [number] notation (e.g., [1], [2]).
 Focus on aging-related mechanisms and proteins when relevant."""
         
         try:
-            response = self.client.chat.completions.create(
+            response = self.llm_client.chat.completions.create(
                 model=self.llm_model,
                 messages=[
                     {"role": "system", "content": system_prompt},

@@ -49,8 +49,8 @@ def test_entity_integration():
     for mention in mentions[:5]:
         print(f"   - {mention.symbol} at pos {mention.start_pos}: '{mention.matched_text}'")
     
-    # Test metadata format for FAISS
-    print("\n5. Simulate metadata for FAISS indexing:")
+    # Test metadata format for ChromaDB
+    print("\n5. Simulate metadata for ChromaDB indexing:")
     metadata = {
         "pmcid": "PMC1234567",
         "doi": "10.1234/test.2024",

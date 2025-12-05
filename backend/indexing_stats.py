@@ -19,7 +19,7 @@ class IndexingStatsTracker:
     Statistics are stored in a JSON file and updated after each batch.
     """
     
-    def __init__(self, stats_file: str = "backend/faiss_store/indexing_stats.json"):
+    def __init__(self, stats_file: str = "backend/chroma_store/indexing_stats.json"):
         """
         Initialize stats tracker.
         

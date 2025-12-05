@@ -24,14 +24,14 @@ class StatisticsService:
     
     def __init__(
         self,
-        metadata_path: str = "backend/faiss_store/meta.jsonl",
-        indexing_stats_path: str = "backend/faiss_store/indexing_stats.json"
+        metadata_path: str = "backend/chroma_store/meta.jsonl",
+        indexing_stats_path: str = "backend/chroma_store/indexing_stats.json"
     ):
         """
         Initialize statistics service.
         
         Args:
-            metadata_path: Path to FAISS metadata JSONL
+            metadata_path: Path to ChromaDB metadata JSONL (for legacy compatibility)
             indexing_stats_path: Path to indexing statistics JSON
         """
         # Handle paths relative to project root

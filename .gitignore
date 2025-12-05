@@ -270,3 +270,16 @@ pip-delete-this-directory.txt
 # Large data files (exceed GitHub 100MB limit)
 data/raw/mol_instructions/
 data/stage1_5_llm_mapped.json
+
+# ChromaDB local storage (now using NeonDB in production)
+backend/chroma_store/
+backend/chroma_db/
+backend/chroma_db_test/
+backend/faiss_store/
+
+# Large corpus data (indexed in NeonDB)
+data/corpus/
+
+# Python virtual environments
+backend/venv/
+venv/
