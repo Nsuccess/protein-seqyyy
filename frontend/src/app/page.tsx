@@ -195,8 +195,8 @@ export default function Home() {
                 <p className="text-xs text-blue-200">Aging Proteins</p>
               </div>
               <div className="absolute -top-6 -right-6 px-5 py-4 bg-gradient-to-br from-purple-600 to-purple-700 rounded-2xl shadow-xl shadow-purple-500/20">
-                <p className="text-3xl font-bold">7,018</p>
-                <p className="text-xs text-purple-200">Papers Indexed</p>
+                <p className="text-3xl font-bold">6,621</p>
+                <p className="text-xs text-purple-200">Paper Chunks</p>
               </div>
             </div>
           </div>
@@ -230,7 +230,7 @@ export default function Home() {
                   AI Literature Search
                 </h3>
                 <p className="text-slate-400 mb-6 leading-relaxed">
-                  Ask questions in natural language. Our RAG pipeline searches 7,000+ papers and synthesizes answers with citations.
+                  Ask questions in natural language. Our RAG pipeline searches 6,600+ paper chunks and synthesizes answers with real citations.
                 </p>
                 <div className="flex items-center gap-2 text-orange-400 font-medium">
                   <span>Try AI Search</span>
@@ -285,7 +285,7 @@ export default function Home() {
               {
                 icon: "🤖",
                 title: "RAG-Powered Search",
-                description: "FAISS vector search over 7K+ papers with semantic chunking and GPT-4 synthesis"
+                description: "NeonDB vector search over 6.6K+ paper chunks with Groq Llama 3.3 synthesis"
               },
               {
                 icon: "🔗",
@@ -383,10 +383,10 @@ export default function Home() {
 
           <div className="grid md:grid-cols-4 gap-6">
             {[
-              { icon: "📄", title: "RAG Pipeline", desc: "FAISS vector search with semantic chunking", color: "blue" },
-              { icon: "🤖", title: "LLM Synthesis", desc: "GPT-4 with protein entity recognition", color: "purple" },
+              { icon: "📄", title: "RAG Pipeline", desc: "NeonDB pgvector search with semantic chunking", color: "blue" },
+              { icon: "🤖", title: "LLM Synthesis", desc: "Groq Llama 3.3 70B with protein entity recognition", color: "purple" },
               { icon: "🧬", title: "Bio Databases", desc: "GenAge + UniProt + PDB integration", color: "green" },
-              { icon: "📊", title: "Mol-Instructions", desc: "495K biomolecular instructions", color: "orange" },
+              { icon: "📊", title: "Mol-Instructions", desc: "5K aging-filtered instructions", color: "orange" },
             ].map((item, i) => (
               <div key={i} className="text-center p-6 rounded-2xl bg-white/[0.02] border border-white/5">
                 <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-${item.color}-500/20 to-${item.color}-600/10 border border-${item.color}-500/20 flex items-center justify-center text-2xl`}>
@@ -437,7 +437,7 @@ export default function Home() {
                 </div>
               </div>
               <p className="text-sm text-slate-400 max-w-md leading-relaxed">
-                Accelerating aging research with AI. Search 7,000+ papers, explore 308 proteins, 
+                Accelerating aging research with AI. Search 6,600+ paper chunks, explore 308 proteins, 
                 and visualize 3D molecular structures — all in one platform.
               </p>
             </div>
@@ -478,7 +478,7 @@ export default function Home() {
                 Next.js + FastAPI
               </span>
               <span className="px-3 py-1 text-xs bg-green-500/10 text-green-400 rounded-full border border-green-500/20">
-                FAISS + GPT-4
+                NeonDB + Groq
               </span>
             </div>
           </div>
