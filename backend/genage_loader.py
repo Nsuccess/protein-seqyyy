@@ -120,12 +120,22 @@ def load_genage_csv(csv_path: str = "data/raw/genage_human.csv") -> GenAgeRegist
     """
     registry = GenAgeRegistry()
     
-    # Always resolve path relative to project root (parent of backend/)
-    project_root = Path(__file__).parent.parent
-    csv_file = project_root / csv_path
+    # Try multiple paths for flexibility (local dev vs Docker)
+    possible_paths = [
+        Path(__file__).parent.parent / csv_path,  # Project root (local dev)
+        Path(__file__).parent / csv_path,          # Backend folder
+        Path("/app") / csv_path,                   # Docker absolute
+        Path(csv_path),                            # Direct path
+    ]
     
-    if not csv_file.exists():
-        raise FileNotFoundError(f"GenAge CSV not found at: {csv_file.absolute()}")
+    csv_file = None
+    for p in possible_paths:
+        if p.exists():
+            csv_file = p
+            break
+    
+    if csv_file is None:
+        raise FileNotFoundError(f"GenAge CSV not found. Tried: {[str(p) for p in possible_paths]}")
     
     with open(csv_file, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)

@@ -180,12 +180,24 @@ def load_theory_json(json_path: str = "data/stage1_5_llm_mapped.json") -> Theory
     """
     registry = TheoryRegistry()
     
-    # Always resolve path relative to project root (parent of backend/)
-    project_root = Path(__file__).parent.parent
-    json_file = project_root / json_path
+    # Try multiple paths for flexibility (local dev vs Docker)
+    possible_paths = [
+        Path(__file__).parent.parent / json_path,  # Project root (local dev)
+        Path(__file__).parent / json_path,          # Backend folder
+        Path("/app") / json_path,                   # Docker absolute
+        Path(json_path),                            # Direct path
+    ]
     
-    if not json_file.exists():
-        raise FileNotFoundError(f"Theory JSON not found at: {json_file.absolute()}")
+    json_file = None
+    for p in possible_paths:
+        if p.exists():
+            json_file = p
+            break
+    
+    if json_file is None:
+        print(f"[TheoryLoader] Warning: Theory JSON not found. Tried: {[str(p) for p in possible_paths]}")
+        print("[TheoryLoader] Continuing with empty theory registry...")
+        return registry  # Return empty registry instead of crashing
     
     print(f"[TheoryLoader] Loading theories from {json_path}...")
     

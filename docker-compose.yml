@@ -9,19 +9,19 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
       - NEBIUS_API_KEY=${NEBIUS_API_KEY}
-      - NEBIUS_MODEL=${NEBIUS_MODEL:-meta-llama/Meta-Llama-3.1-70B-Instruct}
-      - FAISS_INDEX_PATH=/app/faiss_store
+      - NEON_DATABASE_URL=${NEON_DATABASE_URL}
+      - VECTOR_STORE_MODE=${VECTOR_STORE_MODE:-neon}
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./backend/faiss_store:/app/faiss_store
       - ./data:/app/data:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 120s
     restart: unless-stopped
     networks:
       - aging-proteins-network
