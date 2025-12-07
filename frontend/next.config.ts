@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Enable standalone output for Docker deployment
-  output: 'standalone',
+  // Only use standalone for Docker, Vercel handles this automatically
+  ...(process.env.DOCKER_BUILD === 'true' ? { output: 'standalone' } : {}),
   
   webpack: (config, { isServer }) => {
     // Handle node modules that don't work in browser
